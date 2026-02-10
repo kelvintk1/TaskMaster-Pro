@@ -1,65 +1,47 @@
-import Image from "next/image";
+"use client";
+import {useState} from 'react';
+import Image from 'next/image';
+import Header from './components/header';
+import NavBar from './components/navBar';
+import Tabs from './components/tabs';
+import CreateTask from './components/createTask';
 
-export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+export default function HomePage() {
+    const [active, setActive] = useState('today');
+    return(
+        <div className="flex flex-col">
+            <div className='flex items-center justify-between mt-3'>
+                {/* title */}
+                 <div className='flex flex-col'>
+                    <span className='text-3xl font-bold'>
+                        Active Tasks
+                    </span>
+                    <span className='text-sm text-[#92adc9] font-semibold'>
+                        You have 5 tasks scheduled for today.
+                    </span>
+                 </div>
+                 {/* Add button */}
+                 <div className='w-26 h-10 px-2 mt-2 flex justify-center items-center bg-white rounded-xl cursor-pointer hover:shadow-[#92adc9] hover:shadow-md active:shadow-[#92adc9] active:shadow-md'>
+                    <span className=''>
+                        <Image src='/add.gif' alt='add gif' width={80} height={70} priority />
+                    </span>
+                    <span className='text-black font-semibold'>
+                        Task
+                    </span>
+                 </div>
+            </div>
+            <div className='flex flex-col w-full border-b-2 border-[#233648] mt-12'>
+                {/* <div className='w-full flex items-center justify-around transition-all duration-300'>
+                    <span onClick={() => setActive('today')} className={`text-[#92adc9] cursor-pointer text-center font-semibold ${active === 'today' ? "text-white border-b-2 border-blue-600 rounded-2xl w-28" : ""}`}>Today</span>
+                    <span onClick={() => setActive('upcoming')} className={`text-[#92adc9] cursor-pointer text-center font-semibold ${active === 'upcoming' ? "text-white border-b-2 border-blue-600 rounded-2xl w-28" : ""}`}>Upcoming</span>
+                    <span onClick={() => setActive('all')} className={`text-[#92adc9] cursor-pointer text-center font-semibold ${active === 'all' ? "text-white border-b-2 border-blue-600 rounded-2xl w-28" : ""}`}>All</span>
+                    <span onClick={() => setActive('priority')} className={`text-[#92adc9] cursor-pointer text-center font-semibold ${active === 'priority' ? "text-white border-b-2 border-blue-600 rounded-2xl w-28" : ""}`}>Priority</span>
+                </div> */}
+                <Tabs/>
+            </div>
+            {/* <div>
+                <CreateTask/>
+            </div>  */}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+    );
 }
