@@ -1,4 +1,7 @@
+"use client";
+
 import React from 'react'; 
+import { useRef } from "react";
 import Image from 'next/image';
 
 // type Props = {
@@ -6,23 +9,93 @@ import Image from 'next/image';
 //     onClose: () => void;
 // }
 
+
 export default function CreateTask({isOpen, onClose}: Props) { 
     // if(!isOpen) return null;
-    
+    const dateRef = useRef<HTMLInputElement>(null);
+    const timeRef = useRef<HTMLInputElement>(null);
+
     return(
-        <div onClick={onClose}  className="hidden fixed top-0 right-0 left-0 w-screen h-screen flex justify-center items-center bg-black/80">
+        <div onClick={onClose}  className="fixed top-0 right-0 left-0 w-screen h-screen flex justify-center items-center py-8 bg-black/80">
             {/* Modal */}
-            <div className='w-148 h-full shadow-white shadow-md bg-[#101922] rounded-2xl p-4'>
+            <div className='w-130 h-full shadow-white shadow-md bg-[#101922] rounded-2xl p-4'>
                 {/* header */}
-                <div className='w-full flex flex-col gap-6 items-center border-b-1 border-blue-700 py-4'>
-                    <span className='w-full flex items-center justify-end'>
+                <div className='w-full flex gap-6 justify-between items-center border-b-1 border-blue-700 rounded-2xl p-4'>
+                    <span className='text-2xl font-bold flex items-center justify-start gap-2'>
+                        <Image src="/createIcon.png" alt='create icon' width={27} height={27} className='inline-block ml-2'/>
+                        <p>
+                            Create  Task
+                        </p>
+                    </span>
+                    <span className='flex items-center justify-end'>
                         <Image src='/closeB.png' alt='close icon' width={30} height={30} onClick={onClose} className='cursor-pointer hover:rotate-90 active:scale-120 transform-transition duration-200'/>
                     </span>
-                    <span className='text-2xl font-bold'>Create  Task</span>
                 </div>
                 {/* Forms */}
-                <div className=''>
-                    Forms
+                <div className='mt-6 flex flex-col gap-4'>
+                    <span>
+                        <p className="text-md font-semibold">Title</p>
+                        <input type='text' placeholder='Task Title' className='w-full h-10 rounded-md bg-[#233648] mt-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600'/>
+                    </span>
+                    <span>
+                        <p className="text-md font-semibold">Description</p>
+                        <textarea placeholder='Provide details of your task.' className='w-full h-28 rounded-md bg-[#233648] mt-2 p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-600'/>
+                    </span>
+                    <div className="flex items-center justify-between">
+                        <span>
+                            <p>Due Date</p>
+                            <span className="rounded-md bg-[#233648] mt-2 px-1 flex items-center gap-2 
+                                focus-within:ring-2 focus-within:ring-blue-600"
+                                onClick={() => dateRef.current?.showPicker()}
+                                >
+                            {/* Custom calendar icon */}
+                            <button
+                                type="button"
+                                className="cursor-pointer pl-2 hover:scale-110 transform-transition duration-200"
+                            >
+                                <Image src="/calendar.png" alt="calendar icon" width={20} height={20} />
+                            </button>
+
+                            {/* Native date input (hidden UI, same functionality) */}
+                            <input
+                                ref={dateRef}
+                                type="date"
+                                className="ml-2 w-40 h-10 text-sm bg-transparent focus:outline-none"
+                            />
+                            </span>
+                        </span>
+                        <span>
+                            <p>Time</p>
+                            <span
+                                onClick={() => {
+                                timeRef.current?.showPicker?.();
+                                timeRef.current?.focus();
+                                }}
+                                className="rounded-md bg-[#233648] mt-2 px-1 flex items-center gap-2 
+                                        cursor-pointer focus-within:ring-2 focus-within:ring-blue-600"
+                            >
+                                {/* Custom time icon */}
+                                <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    timeRef.current?.showPicker?.();
+                                    timeRef.current?.focus();
+                                }}
+                                className="cursor-pointer pl-2 hover:scale-110 transition-transform duration-200"
+                                >
+                                <Image src="/time.png" alt="time icon" width={20} height={20} />
+                                </button>
+
+                                {/* Native time input (hidden UI, same functionality) */}
+                                <input
+                                ref={timeRef}
+                                type="time"
+                                className="ml-2 w-40 h-10 text-sm bg-transparent focus:outline-none text-gray-200"
+                                />
+                            </span>
+                            </span>
+                    </div>
                 </div>
             </div>
         </div>

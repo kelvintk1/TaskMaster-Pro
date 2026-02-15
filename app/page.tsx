@@ -39,9 +39,9 @@ export default function HomePage() {
                 </div> */}
                 <Tabs/>
             </div>
-            {/* <div>
+            <div>
                 <CreateTask/>
-            </div>  */}
+            </div> 
         </div>
     );
 }
