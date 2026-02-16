@@ -40,7 +40,7 @@ export default function HomePage() {
                 <Tabs/>
             </div>
             <div>
-                <CreateTask/>
+                <CreateTask/> 
             </div> 
         </div>
     );

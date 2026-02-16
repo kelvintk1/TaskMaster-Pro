@@ -3,6 +3,8 @@
 import React from 'react'; 
 import { useRef } from "react";
 import Image from 'next/image';
+import GlassToggle from './glassToggle';
+import NotificationPicker from './notficationPicker';
 
 // type Props = {
 //     isOpen: Boolean;
@@ -20,7 +22,7 @@ export default function CreateTask({isOpen, onClose}: Props) {
             {/* Modal */}
             <div className='w-130 h-full shadow-white shadow-md bg-[#101922] rounded-2xl p-4'>
                 {/* header */}
-                <div className='w-full flex gap-6 justify-between items-center border-b-1 border-blue-700 rounded-2xl p-4'>
+                <div className='w-full flex gap-6 justify-between items-center border-b-1 border-blue-700 rounded-2xl px-4 py-2'>
                     <span className='text-2xl font-bold flex items-center justify-start gap-2'>
                         <Image src="/createIcon.png" alt='create icon' width={27} height={27} className='inline-block ml-2'/>
                         <p>
@@ -95,6 +97,30 @@ export default function CreateTask({isOpen, onClose}: Props) {
                                 />
                             </span>
                             </span>
+                    </div>
+                    <div className='w-full flex items-center mt-2'>
+                        {/* <div className='flex items-center gap-2'>
+                            <span className='flex flex-col gap-2'>
+                                <span className="flex items-center gap-2 cursor-pointer group">
+                                    <p className="text-md border-b border-white group-hover:border-blue-700 group-hover:text-blue-500 hover:-translate-y-1 transition-transform duration-300">Set notification</p>
+                                    <Image src="/alert.png" alt="alert icon" width={20} height={20} className='inline-block ml-1 group-active:scale-120 transition-transform duration-300'/>
+                                </span>
+                                <p className="text-xs text-gray-400">Get alert 30 minutes before deadline</p>
+                            </span>
+                        </div> */}
+                        <NotificationPicker/>
+                        {/* <div className='flex items-center gap-2' >
+                            <span>
+                                <Image src="/note.png" alt="priority icon" width={30} height={30} className='inline-block mr-2'/>
+                            </span>
+                            <GlassToggle />
+                        </div> */}
+                    </div>
+                    <div className='w-full flex px-10'>
+                        <button className='flex items-center justify-center w-full h-10 bg-blue-600 cursor-pointer rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors duration-200'>
+                            <Image src="/add-1.png" alt='check icon' width={25} height={25} className='inline-block mr-2'/>
+                            <span className='text-white font-semibold'>Create</span>
+                        </button>
                     </div>
                 </div>
             </div>
