@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "framer-motion": "^12.34.3",
     "jsonwebtoken": "^9.0.3",
+    "lightswind": "^3.1.21",
     "mongodb": "^7.1.0",
     "mongoose": "^9.2.1",
     "next": "^16.1.6",
@@ -24,8 +26,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.1",
+    "eslint": "^10.0.1",
+    "eslint-config-next": "^0.2.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

@@ -1,6 +1,6 @@
 import {NextResponse} from 'next/server';
 import { connectDB } from '@/lib/db';
-import tasks from '@/models/Task';
+import tasks from '@/models/tasks';
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
     const body = await req.json();

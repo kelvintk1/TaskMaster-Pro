@@ -1,0 +1,56 @@
+export async function getTasks() {
+  const res = await fetch("/api/tasks", {
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch tasks");
+  }
+
+  return res.json();
+}
+
+export async function createTask(task: any) {
+  const res = await fetch("/api/tasks", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(task),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to create task");
+  } else if (res.status === 201) {
+    alert("Task created successfully!");
+    }
+
+  return res.json();
+};
+
+export async function updateTask(taskId: string, updatedData: any) {
+  const res = await fetch(`/api/tasks/${taskId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(updatedData),
+  });
+  if (!res.ok) {
+    throw new Error("Failed to update task");
+  } else if (res.status === 200) {
+    alert("Task updated successfully!");
+  }
+  return res.json();
+}
+
+export async function deleteTask(taskId: string) {
+  const res = await fetch(`/api/tasks/${taskId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    throw new Error("Failed to delete task");
+  } else if (res.status === 200) {
+    alert("Task deleted successfully!");
+  } return res.json();
+};

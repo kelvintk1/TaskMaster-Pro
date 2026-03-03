@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import GradientText from './gradient-text';
 
 export default function Header() {
     return (
@@ -10,16 +11,22 @@ export default function Header() {
                         <Image src='/logo.png' alt='logo' width={25} height={25} priority />
                     </span>
                     <span className='flex flex-col'>
-                        <p className='text-2xl font-bold'>
-                            TaskMaster Pro
-                        </p>
+                        <span className=''>
+                            <GradientText
+                                colors={["#2563EB", "#FFFFFF","#2563EB", "#9CA3AF"]}
+                                animationSpeed={6}
+                                className="text-3xl font-extrabold tracking-tight"
+                                >
+                                TaskMaster Pro
+                            </GradientText>
+                        </span>
                         <p className='text-sm italic font-semibold text-[#92adc9]'>
                             Management & Productivity
                         </p>
                     </span>
                 </div> 
                 {/* Search bar */}
-                <div className='flex items-center gap-2 border-[#324d67] border-b-2 w-94 py-1 px-4 rounded-3xl focus-within:scale-110 transition-transform duration-200'>
+                <div className='flex items-center gap-2 border-[#324d67] border-b-2 w-94 py-1 px-4 rounded-3xl  focus-within:border-blue-600 focus-within:scale-110 transition-transform duration-200'>
                     <span>
                         <Image src='/searchIcon.png' alt='search icon' width={20} height={20} priority className='cursor-pointer '/>
                     </span>

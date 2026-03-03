@@ -67,7 +67,7 @@ export default function NavBar() {
               onClick={() => setActive(item.id)}
               className={`flex items-center gap-6 px-6 py-4 cursor-pointer hover:scale-103
                 transition-all duration-200
-                ${isActive ? "bg-[#233648] rounded-4xl" : ""}
+                ${isActive ? "bg-[#233648] rounded-3xl" : ""}
               `}
             >
               {/* Icon */}
@@ -76,6 +76,7 @@ export default function NavBar() {
                 alt={item.label}
                 width={25}
                 height={25}
+                className={` ${isActive ? "scale-130 transition-transform duration-300" : ""}`}
               />
 
               {/* Text */}

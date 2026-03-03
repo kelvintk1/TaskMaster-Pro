@@ -20,7 +20,7 @@ export default function NotificationPicker() {
         className="flex flex-row-reverse items-center gap-2 cursor-pointer group w-fit"
       >
         <p className="text-md ">
-          Choose when to be reminded
+          Choose when to be reminded before due time.
         </p>
 
         <Image

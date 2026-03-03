@@ -22,9 +22,7 @@ export default function ClientLayout({
         <NavBar expanded={expanded} setExpanded={setExpanded} />
 
         {/* Main content */}
-        <main
-          className={`transition-all duration-300 flex-1 p-6`}
-        >
+        <main className="transition-all duration-300 flex-1 p-6 overflow-hidden no-scrollbar">
           {children}
         </main>
       </div>

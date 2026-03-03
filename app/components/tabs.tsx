@@ -26,7 +26,7 @@ export default function Tabs() {
               className={`cursor-pointer pb-1 font-semibold capitalize transition-colors
                 ${
                   active === tab
-                    ? "text-white"
+                    ? "text-white -translate-y-3 text-lg rotate-y-360 transition-transform duration-300"
                     : "text-[#92adc9]"
                 }`}
             >

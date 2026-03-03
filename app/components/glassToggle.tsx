@@ -11,7 +11,7 @@ export default function GlassToggle() {
         </filter>
       </svg>
 
-      <label className="relative flex flex-col-reverse items-start gap-3 cursor-pointer group">
+      <label className="relative flex flex-col-reverse items-center gap-3 cursor-pointer group">
         {/* Track */}
         <div className="relative w-[60px] h-[32px] rounded-full overflow-hidden">
           {/* Clickable checkbox overlay */}
