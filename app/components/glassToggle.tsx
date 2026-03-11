@@ -40,7 +40,7 @@ export default function GlassToggle() {
         </div>
 
         <span className="text-white text-sm select-none">
-          Enable reminders
+          Reminders
         </span>
       </label>
     </div>

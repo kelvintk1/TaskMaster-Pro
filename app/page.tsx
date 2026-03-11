@@ -5,36 +5,42 @@ import Header from './components/header';
 import NavBar from './components/navBar';
 import Tabs from './components/tabs';
 import CreateTask from './components/createTask';
+import EditTask from './components/editTask';
 import { BorderBeam } from './components/borderBeam';
 import GlassToggle from './components/glassToggle';
 import {getTasks} from '@/lib/api';
 import RippleLoader from './components/ripple-loader';
+import DeleteTask from './components/deleteTask';
 
 export default function HomePage() {
     const [active, setActive] = useState('today');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [tasks, setTasks] = useState<any[]>([]); 
     const [loading, setLoading] = useState(true);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingTask, setEditingTask] = useState(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [deletingTask, setDeletingTask] = useState(null);
+
+    const fetchTasks = async () => {
+        try {
+            const tasksData = await getTasks();
+            // Convert date strings to Date objects
+            const tasksWithDates = tasksData.map((task: any) => ({
+                ...task,
+                dateCreated: task.dateCreated ? new Date(task.dateCreated) : new Date(),
+                dueDate: task.dueDate ? new Date(task.dueDate) : new Date(),
+                reminderDate: task.reminderDate ? new Date(task.reminderDate) : null
+            }));
+            setTasks(tasksWithDates);
+        } catch (error) {
+            console.error("Error fetching tasks:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchTasks = async () => {
-            try {
-                const tasksData = await getTasks();
-                // Convert date strings to Date objects
-                const tasksWithDates = tasksData.map((task: any) => ({
-                    ...task,
-                    dateCreated: task.dateCreated ? new Date(task.dateCreated) : new Date(),
-                    dueDate: task.dueDate ? new Date(task.dueDate) : new Date(),
-                    reminderDate: task.reminderDate ? new Date(task.reminderDate) : null
-                }));
-                setTasks(tasksWithDates);
-            } catch (error) {
-                console.error("Error fetching tasks:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchTasks();
     }, []);
 
@@ -72,29 +78,42 @@ export default function HomePage() {
             alert('Failed to create task');
         };
     };
-    const updateTask = async (taskId: string, updatedData: any) => {
-        try {
-            const res = await fetch(`/api/tasks/${taskId}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(updatedData),
-            });
 
-            if (!res.ok) {
-                throw new Error("Failed to update task");
-            } else if (res.status === 200) {
-                alert("Task updated successfully!");
-            }
-
-            const updatedTask = await res.json();
-            setTasks((prev) => prev.map(task => task._id === taskId ? updatedTask : task));
-        } catch (err) {
-            console.error(err);
-            alert('Failed to update task');
+    const updateTask = async (updatedTask) => {
+    try {
+        console.log("Editing task:", updatedTask); // Debug log
+        
+        // Make sure we have the ID
+        if (!updatedTask.id) {
+            console.error("No task ID provided");
+            return;
         }
-    };
+
+        const response = await fetch(`/api/tasks/${updatedTask.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updatedTask)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error("Server response:", errorData);
+            throw new Error('Failed to update task');
+        }
+        
+        const data = await response.json();
+        console.log("Task updated successfully:", data);
+        
+        // Refresh your tasks list
+        fetchTasks(); // or update local state
+        setIsEditModalOpen(false);
+        setEditingTask(null);
+    } catch (error) {
+        console.error('Error updating task:', error);
+    }
+};
 
     const deleteTask = async (taskId: string) => {
         try {
@@ -167,7 +186,7 @@ export default function HomePage() {
                     </div>
                 ) : (
                     tasks.map(task => (
-                    <div key={task._id} className="relative  grid grid-cols-[1fr_auto_auto_auto] bg-[#233648] rounded-xl p-4 px-6 shadow-md shadow-[#92adc9]">
+                    <div key={task._id} className="relative  grid grid-cols-[1fr_auto_auto_auto] bg-[#233648] rounded-xl p-4 px-6 ">
                         <BorderBeam 
                             colorFrom="#2563EB" 
                             colorTo="#2563EB"
@@ -195,15 +214,15 @@ export default function HomePage() {
                                     <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
                                 </span>
                                 <span className="text-sm text-[#92adc9]">
-                                    Created {task.dateCreated instanceof Date ? task.dateCreated.toLocaleDateString() : new Date(task.dateCreated).toLocaleDateString()}
+                                    Created {task.dateCreated instanceof Date ? task.dateCreated.toLocaleDateString() : new Date(task.dateCreated).toLocaleDateString()} @ {task.dateCreated && (task.dateCreated instanceof Date ? task.dateCreated.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : new Date(task.dateCreated).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})) || 'No time'}
                                 </span>
                             </div>
                             {/* Due date */}
                             <div className="flex flex-col items-center">
-                                <span className="text-sm text-[#92adc9]">
+                                <span className="text-sm text-[#c99292]">
                                     Due {task.dueDate && (task.dueDate instanceof Date ? task.dueDate.toLocaleDateString() : new Date(task.dueDate).toLocaleDateString()) || 'No date'}
                                 </span>
-                                <span className="text-sm text-[#92adc9]">
+                                <span className="text-sm text-[#c99292]">
                                     @ {task.dueDate && (task.dueDate instanceof Date ? task.dueDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})) || 'No time'}
                                 </span>
                             </div>
@@ -214,15 +233,24 @@ export default function HomePage() {
                                 <GlassToggle />
                             </div>
                             <div className="flex flex-col items-center gap-2 mr-2">
-                                <span className="text-sm text-white">Edit</span>
-                                <span>
-                                    <Image src="/editW.png" alt="edit icon" width={30} height={30} className="cursor-pointer hover:scale-120 transform-transition duration-200"/>
+                                {/* <span className="text-sm text-white">Edit</span> */}
+                                <span
+                                    onClick={() => {
+                                            setEditingTask(task);
+                                            setIsEditModalOpen(true);
+                                    }}
+                                >
+                                    <Image src="/editW.png" alt="edit icon" width={25} height={25} className="cursor-pointer hover:scale-120 transform-transition duration-200"/>
                                 </span>
                             </div>
                             <div className="flex flex-col items-center gap-2">
-                                <span className="text-sm text-white">Remove</span>
-                                <span>
-                                    <Image src="/del.png" alt="edit icon" width={30} height={30} className="cursor-pointer hover:scale-120 transform-transition duration-200"/>
+                                {/* <span className="text-sm text-white">Remove</span> */}
+                                <span
+                                    onClick={() => {
+                                    setDeletingTask(task);
+                                    setIsDeleteModalOpen(true);
+                                }}>
+                                    <Image src="/del.png" alt="edit icon" width={25} height={25} className="cursor-pointer hover:scale-120 transform-transition duration-200"/>
                                 </span>
                             </div>
                         </div>
@@ -235,6 +263,28 @@ export default function HomePage() {
                 <CreateTask 
                     onClose={() => setIsModalOpen(false)}
                     onCreate={createTask}
+                />
+            }
+
+            {isEditModalOpen && editingTask && 
+                <EditTask 
+                    task={editingTask}
+                    onClose={() => {
+                        setIsEditModalOpen(false);
+                        setEditingTask(null);
+                    }}
+                    onEdit={updateTask}
+                />
+            }
+
+            {isDeleteModalOpen && deletingTask && 
+                <DeleteTask 
+                    task={deletingTask}
+                    onClose={() => {
+                        setIsDeleteModalOpen(false);
+                        setDeletingTask(null);
+                    }}
+                    onDelete={deleteTask}
                 />
             }
         </div>
