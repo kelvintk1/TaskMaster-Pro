@@ -1,18 +1,15 @@
+// In your Tabs component
 "use client";
 
-import { useState } from "react";
+const tabs = ["all", "today", "upcoming", "priority"];
 
-const tabs = ["today", "upcoming", "all", "priority"];
-
-export default function Tabs() {
-  const [active, setActive] = useState("today");
-
+export default function Tabs({ activeTab, onTabChange }) {
   const underlinePosition = {
-    today: "translate-x-0",
-    upcoming: "translate-x-full",
-    all: "translate-x-[200%]",
+    all: "translate-x-0",
+    today: "translate-x-full",
+    upcoming: "translate-x-[200%]",
     priority: "translate-x-[300%]",
-  }[active];
+  }[activeTab];
 
   return (
     <div className="w-full mt-2">
@@ -22,10 +19,10 @@ export default function Tabs() {
           {tabs.map((tab) => (
             <span
               key={tab}
-              onClick={() => setActive(tab)}
+              onClick={() => onTabChange(tab)}
               className={`cursor-pointer pb-1 font-semibold capitalize transition-colors
                 ${
-                  active === tab
+                  activeTab === tab
                     ? "text-white -translate-y-3 text-lg rotate-y-360 transition-transform duration-300"
                     : "text-[#92adc9]"
                 }`}

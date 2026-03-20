@@ -11,6 +11,9 @@ import GlassToggle from './components/glassToggle';
 import {getTasks} from '@/lib/api';
 import RippleLoader from './components/ripple-loader';
 import DeleteTask from './components/deleteTask';
+import {Pattern} from './components/patterns/p-dropdown-menu-12';
+import { Star } from "lucide-react";
+import Checkbox from "./components/checkBox";
 
 export default function HomePage() {
     const [active, setActive] = useState('today');
@@ -21,6 +24,8 @@ export default function HomePage() {
     const [editingTask, setEditingTask] = useState(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [deletingTask, setDeletingTask] = useState(null);
+    const [activeTab, setActiveTab] = useState("today");
+    const [filteredTasks, setFilteredTasks] = useState([]);
 
     const fetchTasks = async () => {
         try {
@@ -46,12 +51,18 @@ export default function HomePage() {
 
     const createTask = async (taskData: any) => {
         try {
+            // If current tab is "priority", automatically set priority to true
+            const taskWithPriority = {
+                ...taskData,
+                priority: activeTab === "priority" ? true : taskData.priority
+            };
+
             const res = await fetch("/api/tasks", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(taskData),
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(taskWithPriority),
             });
 
             if (!res.ok) {
@@ -80,40 +91,72 @@ export default function HomePage() {
     };
 
     const updateTask = async (updatedTask) => {
-    try {
-        console.log("Editing task:", updatedTask); // Debug log
-        
-        // Make sure we have the ID
-        if (!updatedTask.id) {
-            console.error("No task ID provided");
-            return;
-        }
+        try {
+            console.log("Editing task:", updatedTask);
+            
+            // Check for both id and _id
+            const taskId = updatedTask.id || updatedTask._id;
+            
+            if (!taskId) {
+                console.error("No task ID provided");
+                return;
+            }
 
-        const response = await fetch(`/api/tasks/${updatedTask.id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updatedTask)
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.text();
-            console.error("Server response:", errorData);
-            throw new Error('Failed to update task');
+            const response = await fetch(`/api/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updatedTask)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.text();
+                console.error("Server response:", errorData);
+                throw new Error('Failed to update task');
+            }
+            
+            const data = await response.json();
+            console.log("Task updated successfully:", data);
+            
+            // Update local state
+            setTasks(prevTasks => 
+                prevTasks.map(task => {
+                    const taskIdentifier = task._id || task.id;
+                    if (taskIdentifier === taskId) {
+                        return { 
+                            ...task,
+                            ...updatedTask,
+                            _id: task._id,
+                            id: task.id,
+                            remind: updatedTask.remind,
+                            reminderDate: updatedTask.reminderDate ? new Date(updatedTask.reminderDate) : task.reminderDate,
+                            reminderTime: updatedTask.reminderTime || task.reminderTime,
+                            dateCreated: new Date(updatedTask.dateCreated || task.dateCreated),
+                            dueDate: new Date(updatedTask.dueDate || task.dueDate),
+                        };
+                    }
+                    return task;
+                })
+            );
+            
+            setIsEditModalOpen(false);
+            setEditingTask(null);
+        } catch (error) {
+            console.error('Error updating task:', error);
+            alert('Failed to update task');
         }
-        
-        const data = await response.json();
-        console.log("Task updated successfully:", data);
-        
-        // Refresh your tasks list
-        fetchTasks(); // or update local state
-        setIsEditModalOpen(false);
-        setEditingTask(null);
-    } catch (error) {
-        console.error('Error updating task:', error);
-    }
-};
+    };
+
+    const togglePriority = async (task) => {
+        const taskId = task._id || task.id;
+        const updatedTask = {
+            ...task,
+            id: taskId,
+            priority: !task.priority // Toggle the priority
+        };
+        await updateTask(updatedTask);
+    };
 
     const deleteTask = async (taskId: string) => {
         try {
@@ -123,43 +166,93 @@ export default function HomePage() {
 
             if (!res.ok) {
                 throw new Error("Failed to delete task");
-            } else if (res.status === 200) {
-                alert("Task deleted successfully!");
+            } else if (res.ok) {
+                alert("Task deleted successfully")
             }
 
+            // Update local state immediately (remove the deleted task)
             setTasks((prev) => prev.filter(task => task._id !== taskId));
+            
+            // Close the modal
+            setIsDeleteModalOpen(false);
+            setDeletingTask(null);
+            
         } catch (err) {
             console.error(err);
             alert('Failed to delete task');
         }
     };
 
+    // Filter tasks when activeTab or tasks change
+    useEffect(() => {
+        const filtered = filterTasksByTab(tasks, activeTab);
+        setFilteredTasks(filtered);
+    }, [activeTab, tasks]);
+
+    // Filter function
+    const filterTasksByTab = (tasks, tab) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const endOfWeek = new Date(today);
+        endOfWeek.setDate(endOfWeek.getDate() + 7); // End of next 7 days
+
+        switch (tab) {
+            case "today":
+                return tasks.filter(task => {
+                    const taskDate = new Date(task.dueDate);
+                    taskDate.setHours(0, 0, 0, 0);
+                    return taskDate.getTime() === today.getTime();
+                });
+
+            case "upcoming":
+                return tasks.filter(task => {
+                    const taskDate = new Date(task.dueDate);
+                    taskDate.setHours(0, 0, 0, 0);
+                    // Tasks from tomorrow to end of week
+                    return taskDate > today && taskDate <= endOfWeek;
+                });
+
+            case "priority":
+                return tasks.filter(task => task.priority === true);
+
+            case "all":
+            default:
+                return tasks;
+        }
+    };
 
     return(
         <div className="flex flex-col">
             <div className='flex items-center justify-between mt-3'>
                 {/* title */}
-                 <div className='flex flex-col'>
+                <div className='flex flex-col'>
                     <span className='text-3xl font-bold'>
                         Active Tasks
                     </span>
                     <span className='text-sm text-[#92adc9] font-semibold'>
-                        You have {tasks.length} tasks scheduled for today.
+                        {activeTab === 'today' && `You have ${filteredTasks.length} tasks scheduled for today.`}
+                        {activeTab === 'upcoming' && `You have ${filteredTasks.length} tasks scheduled for this week.`}
+                        {activeTab === 'priority' && `You have ${filteredTasks.length} priority tasks.`}
+                        {activeTab === 'all' && `You have ${filteredTasks.length} total tasks.`}
                     </span>
-                 </div>
-                 {/* Add button */}
-                 <div onClick={() => setIsModalOpen(true)} className='w-26 h-10 px-2 mt-2 flex justify-center items-center bg-white rounded-xl cursor-pointer hover:shadow-[#92adc9] hover:shadow-md active:shadow-[#92adc9] active:shadow-md'>
+                </div>
+                {/* Add button */}
+                <div onClick={() => setIsModalOpen(true)} className='w-26 h-10 px-2 mt-2 flex justify-center items-center bg-white rounded-xl cursor-pointer hover:shadow-[#92adc9] hover:shadow-md active:shadow-[#92adc9] active:shadow-md'>
                     <span className=''>
-                        <Image src='/add.gif' alt='add gif' width={80} height={70} priority />
+                        <Image src='/add.gif' alt='add gif' width={80} height={70} priority style={{ width: 'auto', height: 'auto' }} />
                     </span>
                     <span className='text-black font-semibold'>
                         Task
                     </span>
-                 </div> 
-
+                </div> 
             </div>
+
             <div className='flex flex-col w-full border-b-2 border-[#233648] mt-12'>
-                <Tabs/>
+                <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
 
             <div className='flex flex-col gap-4 p-6 overflow-y-auto no-scrollbar h-[calc(100vh-250px)]'>
@@ -168,7 +261,7 @@ export default function HomePage() {
                         <RippleLoader />
                         <span className="text-[#92adc9] text-xl font-semibold mt-4">Loading tasks...</span>
                     </div>
-                ) : tasks.length === 0 ? (
+                ) : filteredTasks.length === 0 ? (
                     <div className="w-full h-full flex flex-col gap-5 items-center justify-center">
                         <span className="text-[#92adc9] text-2xl font-semibold">No tasks available</span>
                         <span>
@@ -185,76 +278,107 @@ export default function HomePage() {
                         </div>
                     </div>
                 ) : (
-                    tasks.map(task => (
-                    <div key={task._id} className="relative  grid grid-cols-[1fr_auto_auto_auto] bg-[#233648] rounded-xl p-4 px-6 ">
-                        <BorderBeam 
-                            colorFrom="#2563EB" 
-                            colorTo="#2563EB"
-                            size={50}
-                            duration={6}
-                            borderThickness={2}
-                             
-                            glowIntensity={3}
-                        />
-                        {/* left side */} 
-                        <div className="flex gap-3 items-center">
-                            <div>
-                                <input type="checkbox" className="w-4 h-4 mr-2 cursor-pointer" />
+                    filteredTasks.map(task => (
+                        <div key={task._id} className="relative grid grid-cols-[1fr_auto_auto_auto] bg-[#233648] rounded-xl p-4 px-6">
+                            <BorderBeam 
+                                colorFrom="#2563EB" 
+                                colorTo="#2563EB"
+                                size={50}
+                                duration={6}
+                                borderThickness={2}
+                                glowIntensity={3}
+                            />
+                            
+                            {/* Priority Star - Show only if task is prioritized */}
+                            {task.priority && (
+                                <Image 
+                                    src="/star.gif" 
+                                    alt="priority" 
+                                    width={40} 
+                                    height={40} 
+                                    className="absolute -top-4 -left-3 rotate-25"
+                                />
+                            )}
+                            
+                            {/* left side */} 
+                            <div className="flex gap-3 items-center">
+                                <div className="flex-shrink-0">
+                                    {/* <input type="checkbox" className="w-4 h-4 mr-2 cursor-pointer" /> */}
+                                    <Checkbox />
+                                </div>
+                                <div>
+                                    <p className="text-xl font-bold flex items-center gap-2">
+                                        {task.title}
+                                        {/* {task.priority && (
+                                            <Star className="h-5 w-5 text-yellow-500 inline-block" fill="currentColor" />
+                                        )} */}
+                                    </p>
+                                    <p className="text-sm text-[#92adc9]">{task.description}</p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-xl font-bold">{task.title}</p>
-                                <p className="text-sm text-[#92adc9]">{task.description}</p>
-                            </div>
-                        </div>
-                        {/* middle side */}
-                        <div className="flex flex-col items-center">
-                            {/* Date created */}
-                            <div className="flex items-center gap-1">
-                                <span>
-                                    <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
-                                </span>
-                                <span className="text-sm text-[#92adc9]">
-                                    Created {task.dateCreated instanceof Date ? task.dateCreated.toLocaleDateString() : new Date(task.dateCreated).toLocaleDateString()} @ {task.dateCreated && (task.dateCreated instanceof Date ? task.dateCreated.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : new Date(task.dateCreated).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})) || 'No time'}
-                                </span>
-                            </div>
-                            {/* Due date */}
+                            
+                            {/* middle side */}
                             <div className="flex flex-col items-center">
-                                <span className="text-sm text-[#c99292]">
-                                    Due {task.dueDate && (task.dueDate instanceof Date ? task.dueDate.toLocaleDateString() : new Date(task.dueDate).toLocaleDateString()) || 'No date'}
-                                </span>
-                                <span className="text-sm text-[#c99292]">
-                                    @ {task.dueDate && (task.dueDate instanceof Date ? task.dueDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})) || 'No time'}
-                                </span>
+                                {/* Date created */}
+                                <div className="flex items-center gap-1">
+                                    <span>
+                                        <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
+                                    </span>
+                                    <span className="text-sm text-[#92adc9]">
+                                        Created {task.dateCreated instanceof Date ? task.dateCreated.toLocaleDateString() : new Date(task.dateCreated).toLocaleDateString()} @ {task.dateCreated && (task.dateCreated instanceof Date ? task.dateCreated.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : new Date(task.dateCreated).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})) || 'No time'}
+                                    </span>
+                                </div>
+                                {/* Due date */}
+                                <div className="flex flex-col items-center">
+                                    <span className="text-sm text-[#c99292]">
+                                        Due {task.dueDate && (task.dueDate instanceof Date ? task.dueDate.toLocaleDateString() : new Date(task.dueDate).toLocaleDateString()) || 'No date'}
+                                    </span>
+                                    <span className="text-sm text-[#c99292]">
+                                        @ {task.dueDate && (task.dueDate instanceof Date ? task.dueDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})) || 'No time'}
+                                    </span>
+                                </div>
                             </div>
-                        </div>
-                        {/* right side */}
-                        <div className="flex items-center gap-1">
-                            <div>
-                                <GlassToggle />
-                            </div>
-                            <div className="flex flex-col items-center gap-2 mr-2">
-                                {/* <span className="text-sm text-white">Edit</span> */}
-                                <span
-                                    onClick={() => {
+                            
+                            {/* right side */}
+                            <div className="flex items-center gap-1">
+                                <div className='flex flex-col items-center gap-2 mx-7'>
+                                    <p className='text-xs font-bold'>Reminder</p>
+                                    <GlassToggle 
+                                        checked={task.remind || false}
+                                        onChange={(checked) => {
+                                            if (checked && !task.reminderDate && !task.reminderTime) {
+                                                // If turning ON and no reminder date/time exists, open edit modal
+                                                setEditingTask(task);
+                                                setIsEditModalOpen(true);
+                                            } else {
+                                                // For all other cases
+                                                const taskId = task._id || task.id;
+                                                const updatedTask = {
+                                                    ...task,
+                                                    id: taskId,
+                                                    remind: checked
+                                                };
+                                                updateTask(updatedTask);
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <div>
+                                    <Pattern 
+                                        task={task}
+                                        onEdit={(task) => {
                                             setEditingTask(task);
                                             setIsEditModalOpen(true);
-                                    }}
-                                >
-                                    <Image src="/editW.png" alt="edit icon" width={25} height={25} className="cursor-pointer hover:scale-120 transform-transition duration-200"/>
-                                </span>
-                            </div>
-                            <div className="flex flex-col items-center gap-2">
-                                {/* <span className="text-sm text-white">Remove</span> */}
-                                <span
-                                    onClick={() => {
-                                    setDeletingTask(task);
-                                    setIsDeleteModalOpen(true);
-                                }}>
-                                    <Image src="/del.png" alt="edit icon" width={25} height={25} className="cursor-pointer hover:scale-120 transform-transition duration-200"/>
-                                </span>
+                                        }}
+                                        onDelete={(taskId) => {
+                                            setDeletingTask(task);
+                                            setIsDeleteModalOpen(true);
+                                        }}
+                                        onTogglePriority={togglePriority}
+                                    />
+                                </div>
                             </div>
                         </div>
-                    </div>
                     ))
                 )}
             </div>
@@ -278,7 +402,7 @@ export default function HomePage() {
             }
 
             {isDeleteModalOpen && deletingTask && 
-                <DeleteTask 
+                <DeleteTask
                     task={deletingTask}
                     onClose={() => {
                         setIsDeleteModalOpen(false);

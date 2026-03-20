@@ -19,9 +19,14 @@ export default function NotificationPicker() {
         onClick={() => valueRef.current?.focus()}
         className="flex flex-row-reverse items-center gap-2 cursor-pointer group w-fit"
       >
-        <p className="text-md ">
-          Choose when to be reminded before due time.
-        </p>
+        <span className="flex items-center gap-1">
+          <p className="text-md ">
+            Choose when to be reminded before due time.
+          </p>
+          <p className="text-md ">
+            (Optional)
+          </p>
+        </span>
 
         <Image
           src="/alert.png"

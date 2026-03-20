@@ -7,26 +7,26 @@ const navItems = [
   {
     id: "tasks",
     label: "Tasks",
-    icon: "/task.png",
-    activeIcon: "/taskWhite.png",
+    icon: "/taskWhite.png",
+    activeIcon: "/task-B.png",
   },
   {
     id: "budgets",
     label: "Budgets",
-    icon: "/budget.png",
-    activeIcon: "/budgetWhite.png",
+    icon: "/budgetwhite.png",
+    activeIcon: "/dollar-B.png",
   },
   {
     id: "completed",
     label: "Completed",
-    icon: "/completed.png",
-    activeIcon: "/completedWhite.png",
+    icon: "/completedWhite.png",
+    activeIcon: "/completed-B.png",
   },
   {
-    id: "settings",
-    label: "Settings",
-    icon: "/settings.png",
-    activeIcon: "/settingsWhite.png",
+    id: "uncompleted",
+    label: "Uncompleted",
+    icon: "/uncompleted-W.png",
+    activeIcon: "/uncompleted-B.png",
   },
 ];
 
