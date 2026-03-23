@@ -1,7 +1,9 @@
 "use client";
 
+import React, { useState } from "react";
 import Image from "next/image";
-import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const navItems = [
   {
@@ -9,30 +11,42 @@ const navItems = [
     label: "Tasks",
     icon: "/taskWhite.png",
     activeIcon: "/task-B.png",
+    href: "/",
   },
   {
     id: "budgets",
     label: "Budgets",
     icon: "/budgetwhite.png",
     activeIcon: "/dollar-B.png",
+    href: "/budgets",
   },
   {
     id: "completed",
     label: "Completed",
     icon: "/completedWhite.png",
     activeIcon: "/completed-B.png",
+    href: "/completed",
   },
   {
     id: "uncompleted",
     label: "Uncompleted",
     icon: "/uncompleted-W.png",
     activeIcon: "/uncompleted-B.png",
+    href: "/uncompleted",
   },
 ];
 
 export default function NavBar() {
   const [expanded, setExpanded] = useState(true);
-  const [active, setActive] = useState("tasks");
+  const pathname = usePathname();
+
+  // Determine active item based on current path
+  const getActiveId = () => {
+    const currentItem = navItems.find(item => pathname === item.href);
+    return currentItem ? currentItem.id : "tasks";
+  };
+
+  const active = getActiveId();
 
   return (
     <aside
@@ -62,9 +76,9 @@ export default function NavBar() {
           const isActive = active === item.id;
 
           return (
-            <div
+            <Link
               key={item.id}
-              onClick={() => setActive(item.id)}
+              href={item.href}
               className={`flex items-center gap-6 px-6 py-4 cursor-pointer hover:scale-103
                 transition-all duration-200
                 ${isActive ? "bg-[#233648] rounded-3xl" : ""}
@@ -91,7 +105,7 @@ export default function NavBar() {
                   {item.label}
                 </span>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
