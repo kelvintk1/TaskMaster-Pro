@@ -1,31 +1,171 @@
+// app/completed/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { GlowCard } from "../components/spotlight-card";
 import { ProgressBar } from "../components/progress-bar";
-import {CountUp} from "../components/count-up"; 
-import { animate, useMotionValue, useTransform } from "framer-motion";
+import { CountUp } from "../components/count-up"; 
+import { animate } from "framer-motion";
 import { BorderBeam } from '../components/borderBeam';
 import Checkbox from "../components/checkBox";
 import Image from "next/image";
+import CompleteTask from "../components/completeTask";
+import { getTasks } from '@/lib/api';
+import RippleLoader from "../components/ripple-loader";
 
 export default function CompletedPage() {
-  const totalTasks = 100;
-  const targetValue = 50; // Target completed tasks
-  const [animatedValue, setAnimatedValue] = useState(0);
-  
-  // Animate the progress value
+  const [completedTasks, setCompletedTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isUndoModalOpen, setIsUndoModalOpen] = useState(false);
+  const [undoingTask, setUndoingTask] = useState(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    weekly: 0,
+    priority: 0,
+    monthly: 0
+  });
+
+const fetchCompletedTasks = async () => {
+  try {
+    const tasksData = await getTasks();
+    // Filter completed tasks (using both status and completed field)
+    const completed = tasksData.filter((task: any) => 
+      task.completed === true || task.status === 'completed'
+    );
+    
+    // Convert date strings to Date objects
+    const tasksWithDates = completed.map((task: any) => ({
+      ...task,
+      dateCreated: task.dateCreated ? new Date(task.dateCreated) : new Date(),
+      dueDate: task.dueDate ? new Date(task.dueDate) : new Date(),
+      reminderDate: task.reminderDate ? new Date(task.reminderDate) : null,
+      completedAt: task.completedAt ? new Date(task.completedAt) : new Date()
+    }));
+    
+    setCompletedTasks(tasksWithDates);
+      
+      // Calculate stats
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      const weeklyCompleted = tasksWithDates.filter(task => {
+        const completedDate = task.completedAt ? new Date(task.completedAt) : new Date();
+        return completedDate >= startOfWeek;
+      }).length;
+      
+      const monthlyCompleted = tasksWithDates.filter(task => {
+        const completedDate = task.completedAt ? new Date(task.completedAt) : new Date();
+        return completedDate.getMonth() === currentMonth && 
+               completedDate.getFullYear() === currentYear;
+      }).length;
+      
+      const priorityCompleted = tasksWithDates.filter(task => task.priority === true).length;
+      
+      setStats({
+        total: tasksWithDates.length,
+        weekly: weeklyCompleted,
+        priority: priorityCompleted,
+        monthly: monthlyCompleted
+      });
+      
+    } catch (error) {
+      console.error("Error fetching completed tasks:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const controls = animate(0, targetValue, {
-      duration: 1.5,
-      ease: "easeOut",
-      onUpdate: (value) => {
-        setAnimatedValue(Math.floor(value));
-      },
+    fetchCompletedTasks();
+  }, []);
+
+  // Handle undo task completion
+  const handleUndoTask = async (taskId: string) => {
+    try {
+      const taskToUndo = completedTasks.find(t => (t._id || t.id) === taskId);
+      if (!taskToUndo) return;
+
+      const updatedTask = {
+        ...taskToUndo,
+        completed: false,
+        status: "pending",
+        completedAt: null
+      };
+
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedTask)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to undo task');
+      }
+
+      // Remove the undone task from completed tasks
+      setCompletedTasks(prev => prev.filter(task => (task._id || task.id) !== taskId));
+      
+      // Update stats
+      const isWeeklyTask = taskToUndo.completedAt && 
+        new Date(taskToUndo.completedAt) >= new Date(new Date().setDate(new Date().getDate() - new Date().getDay()));
+      const isMonthlyTask = taskToUndo.completedAt && 
+        new Date(taskToUndo.completedAt).getMonth() === new Date().getMonth();
+      
+      setStats(prev => ({
+        total: Math.max(0, prev.total - 1),
+        weekly: isWeeklyTask ? Math.max(0, prev.weekly - 1) : prev.weekly,
+        priority: taskToUndo.priority ? Math.max(0, prev.priority - 1) : prev.priority,
+        monthly: isMonthlyTask ? Math.max(0, prev.monthly - 1) : prev.monthly
+      }));
+      
+      alert('Task moved back to active tasks!');
+      
+    } catch (error) {
+      console.error('Error undoing task:', error);
+      alert('Failed to undo task');
+    }
+  };
+
+  // Group tasks by completion date
+  const groupTasksByDate = () => {
+    const groups: { [key: string]: any[] } = {};
+    
+    completedTasks.forEach(task => {
+      const completedDate = task.completedAt ? new Date(task.completedAt) : new Date();
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      let dateKey;
+      if (completedDate.toDateString() === today.toDateString()) {
+        dateKey = 'Today';
+      } else if (completedDate.toDateString() === yesterday.toDateString()) {
+        dateKey = 'Yesterday';
+      } else {
+        dateKey = completedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+      }
+      
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(task);
     });
     
-    return () => controls.stop();
-  }, [targetValue]);
+    return groups;
+  };
+
+  const groupedTasks = groupTasksByDate();
+  const totalCompleted = completedTasks.length;
+
+  // Ensure we have valid numbers for the progress bar
+  const progressValue = isNaN(stats.monthly) ? 0 : stats.monthly;
+  const progressMax = totalCompleted === 0 ? 1 : totalCompleted; // Avoid division by zero
 
   return (
     <div className="p-2">
@@ -40,7 +180,7 @@ export default function CompletedPage() {
             <span className="flex items-center justify-center gap-3 w-full">
               <span className="text-xl font-semibold">
                 <CountUp 
-                  value={targetValue}
+                  value={stats.monthly || 0}
                   duration={1.5}
                   colorScheme="custom"
                   customColor="#1814ee"
@@ -52,7 +192,7 @@ export default function CompletedPage() {
               <span className="text-sm italic">out of</span>
               <span className="text-xl font-semibold">
                  <CountUp 
-                  value={totalTasks}
+                  value={totalCompleted}
                   duration={1.5}
                   colorScheme="custom"
                   customColor="#1814ee"
@@ -63,21 +203,23 @@ export default function CompletedPage() {
               </span>
             </span>
             <span className="text-center text-sm text-gray-500">
-              Tasks completed for this month (March)
+              Tasks completed for this month ({new Date().toLocaleString('default', { month: 'long' })})
             </span>
           </div>
           
-          {/* Progress Bar */}
-          <div className="">
-            <ProgressBar
-              max={totalTasks}
-              min={0}
-              value={animatedValue}
-              gaugePrimaryColor="#0804f3"
-              gaugeSecondaryColor="#aebcfc54"
-              className="w-full"
-            />
-          </div>
+          {/* Progress Bar with safe values */}
+          {!loading && totalCompleted > 0 && (
+            <div className="">
+              <ProgressBar
+                max={progressMax}
+                min={0}
+                value={progressValue}
+                gaugePrimaryColor="#0804f3"
+                gaugeSecondaryColor="#aebcfc54"
+                className="w-full"
+              />
+            </div>
+          )}
         </div>
       </div>
       
@@ -90,7 +232,7 @@ export default function CompletedPage() {
             </span>
             <span className="text-3xl text-center font-bold text-blue-700 mt-1">
               <CountUp 
-                value={200}
+                value={stats.total || 0}
                 interactive={true}
                 colorScheme="custom"
                 customColor="#1814ee"
@@ -108,7 +250,7 @@ export default function CompletedPage() {
             </span>
             <span className="text-3xl text-center font-bold text-blue-700 mt-1">
               <CountUp 
-                value={60}
+                value={stats.weekly || 0}
                 interactive={true}
                 colorScheme="custom"
                 customColor="#1814ee"
@@ -126,7 +268,7 @@ export default function CompletedPage() {
             </span>
             <span className="text-3xl text-center font-bold text-blue-700 mt-1">
               <CountUp 
-                value={10}
+                value={stats.priority || 0}
                 interactive={true}
                 colorScheme="custom"
                 customColor="#1814ee"
@@ -139,971 +281,154 @@ export default function CompletedPage() {
       </div>
       
       <div className="flex flex-col gap-4 p-6 mt-4 overflow-y-auto no-scrollbar h-[calc(100vh-350px)]">
-          <div className="flex flex-col gap-2">
-            {/* line 1*/}
-            <div className="flex items-center gap-4">
-              <span className="w-30 font-bold italic">
-                Today
-              </span>
-              <div className="flex-1 border-t border-gray-500 flex justify-center" aria-hidden="true"></div>
-              <span className="pl-26 flex items-center justify-end">
-                <p className="font-bold bg-black/60 rounded-full px-2">2</p>
-              </span>
-            </div>
-            {/* Completed tasks A1*/}
-            <div className="relative grid grid-cols-[1fr_auto_auto_auto] gap-4 bg-[#233648] rounded-xl p-4 px-6">
-              <BorderBeam 
-                  colorFrom="#2563EB" 
-                  colorTo="#2563EB"
-                  size={50}
-                  duration={6}
-                  borderThickness={2}
-                  glowIntensity={3}
-              />
-              
-              {/* Priority Star - Show only if completed task was prioritized */}
-                  <Image 
-                      src="/star.gif" 
-                      alt="priority" 
-                      width={40} 
-                      height={40} 
-                      className="absolute -top-4 -left-3 rotate-25"
-                  />
-              
-              {/* left side */} 
-              <div className="flex gap-3 items-center">
-                  <div className="flex-shrink-0">
-                      <Checkbox />
-                  </div>
-                  <div>
-                      {/* Completed task title */}
-                      <p className="text-xl text-gray-500 font-bold flex items-center gap-2">
-                          Figma Project
-                      </p>
-                      {/* Completed task description */}
-                      <p className="text-sm text-[#92adc9]">Have to start working on the figma design</p>
-                  </div>
+        {loading ? (
+          <div className="w-full h-full flex flex-col gap-2 items-center justify-center"> 
+            <RippleLoader />
+            <span className="text-[#92adc9] text-xl font-semibold mt-4">Loading completed tasks...</span>
+          </div>
+        ) : completedTasks.length === 0 ? (
+          <div className="w-full h-full flex flex-col gap-5 items-center justify-center">
+            <span className="text-[#92adc9] text-2xl font-semibold">No completed tasks yet</span>
+            <span>
+              <Image src="/emptyFolder.png" alt="Blank list" width={300} height={300} />
+            </span>
+            <span className="text-gray-400">Complete tasks to see them here!</span>
+          </div>
+        ) : (
+          Object.entries(groupedTasks).map(([date, tasks]) => (
+            <div key={date} className="flex flex-col gap-2">
+              {/* Date header */}
+              <div className="flex items-center gap-4">
+                <span className="w-30 font-bold italic">
+                  {date}
+                </span>
+                <div className="flex-1 border-t border-gray-500 flex justify-center" aria-hidden="true"></div>
+                <span className="pl-26 flex items-center justify-end">
+                  <p className="font-bold bg-black/60 rounded-full px-2">{tasks.length}</p>
+                </span>
               </div>
               
-              {/* middle side */}
-              <div className="flex flex-col items-center">
-                  {/* Date created */}
-                  <div className="flex items-center gap-1">
-                      <span>
-                          <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
-                      </span>
-                      <span className="text-sm text-[#92adc9]">
-                          Created 22/03/2026
-                      </span>
+              {/* Completed tasks for this date */}
+              {tasks.map(task => (
+                <div key={task._id} className="relative grid grid-cols-[1fr_auto_auto_auto] gap-4 bg-[#233648] rounded-xl p-4 px-6">
+                  <BorderBeam 
+                      colorFrom="#2563EB" 
+                      colorTo="#2563EB"
+                      size={50}
+                      duration={6}
+                      borderThickness={2}
+                      glowIntensity={3}
+                  />
+                  
+                  {/* Priority Star - Show only if completed task was prioritized */}
+                  {task.priority && (
+                      <Image 
+                          src="/star.gif" 
+                          alt="priority" 
+                          width={40} 
+                          height={40} 
+                          className="absolute -top-4 -left-3 rotate-25"
+                      />
+                  )}
+                  
+                  {/* left side */} 
+                  <div className="flex gap-3 items-center">
+                      <div className="flex-shrink-0">
+                          <Checkbox 
+                            checked={true}
+                            onChange={() => {
+                              setUndoingTask(task);
+                              setIsUndoModalOpen(true);
+                            }}
+                          />
+                      </div>
+                      <div>
+                          {/* Completed task title */}
+                          <p className="text-xl text-gray-500 font-bold flex items-center gap-2">
+                              {task.title}
+                          </p>
+                          {/* Completed task description */}
+                          <p className="text-sm text-[#92adc9]">{task.description || 'No description'}</p>
+                      </div>
                   </div>
-                  {/* Due date */}
+                  
+                  {/* middle side */}
                   <div className="flex flex-col items-center">
-                      <span className="text-sm text-[#92adc9]">
-                          Due 23/03/2026
-                      </span>
-                      <span className="text-sm text-[#92adc9]">
-                          @ 11:00 PM
-                      </span>
+                      {/* Date created */}
+                      <div className="flex items-center gap-1">
+                          <span>
+                              <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
+                          </span>
+                          <span className="text-sm text-[#92adc9]">
+                              Created {task.dateCreated instanceof Date ? task.dateCreated.toLocaleDateString() : new Date(task.dateCreated).toLocaleDateString()}
+                          </span>
+                      </div>
+                      {/* Due date */}
+                      <div className="flex flex-col items-center">
+                          <span className="text-sm text-[#92adc9]">
+                              Due {task.dueDate instanceof Date ? task.dueDate.toLocaleDateString() : new Date(task.dueDate).toLocaleDateString()}
+                          </span>
+                          <span className="text-sm text-[#92adc9]">
+                              @ {task.dueDate instanceof Date ? task.dueDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </span>
+                      </div>
                   </div>
-              </div>
-              
-              {/* right side */}
-              <div className="flex flex-col items-center">
-                  {/* Date Completed */}
-                  <div className="flex flex-col justify-center items-center">
-                      <span>
-                          <Image src="/stopwatch.png" alt="calendar icon" width={20} height={20} />
-                      </span>
-                      <span className="text-center text-sm text-[#c99292]">
-                        Completed @ 11:30 PM
-                      </span>
+                  
+                  {/* right side */}
+                  <div className="flex flex-col items-center">
+                      {/* Date Completed */}
+                      <div className="flex flex-col justify-center items-center">
+                          <span>
+                              <Image src="/stopwatch.png" alt="calendar icon" width={20} height={20} />
+                          </span>
+                          <span className="text-center text-sm text-[#c99292]">
+                            Completed {task.completedAt instanceof Date ? task.completedAt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : new Date(task.completedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </span>
+                      </div>
+                      {/* Duration */}
+                      <div className="flex gap-2 items-center">
+                          <span className="text-sm text-center text-[#c99292] pl-6">
+                              Duration: {Math.ceil((new Date(task.completedAt).getTime() - new Date(task.dateCreated).getTime()) / (1000 * 60 * 60 * 24))} days
+                          </span>
+                      </div>
                   </div>
-                  {/* Duration */}
-                  <div className="flex gap-2 items-center">
-                      <span className="text-sm text-center text-[#c99292] pl-6">
-                          Duration: 2 days
+                  {/* last side - Reminder status */}
+                  <div className="text-sm text-[#92adc9]">
+                    {task.remind && task.reminderDate ? (
+                      <span className="flex flex-col justify-center items-center">
+                        <span>
+                          <Image src="/remind1.png" alt="reminder icon" width={18} height={18} />
+                        </span>
+                        <p>Reminded {new Date(task.reminderDate).toLocaleDateString()}</p>
+                        <p>@ {task.reminderTime || 'No time'}</p>
                       </span>
+                    ) : (
+                      <span className="flex flex-col items-center justify-center gap-2">
+                        <span>
+                          <Image src="/remind.png" alt="reminder icon" width={18} height={18} />
+                        </span>
+                        <p>Not Reminded</p>
+                      </span>
+                    )}
                   </div>
-              </div>
-              {/* last side */}
-              <div className="text-sm text-[#92adc9]">
-                <span className="flex flex-col justify-center items-center">
-                  <span>
-                    <Image src="/remind1.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Reminded 03/21/2026</p>
-                  <p>@ 11:00 PM</p>
-                </span>
-
-                {/* <span className="flex flex-col items-center justify-center gap-2">
-                  <span>
-                    <Image src="/remind.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Not Reminded</p>
-                </span> */}
-              </div>
-          </div>
-
-            {/* Completed tasks A2*/}
-            <div className="relative grid grid-cols-[1fr_auto_auto_auto] bg-[#233648] rounded-xl p-4 gap-4 px-6">
-              <BorderBeam 
-                  colorFrom="#2563EB" 
-                  colorTo="#2563EB"
-                  size={50}
-                  duration={6}
-                  borderThickness={2}
-                  glowIntensity={3}
-              />
-              
-              {/* Priority Star - Show only if completed task was prioritized */}
-                  <Image 
-                      src="/star.gif" 
-                      alt="priority" 
-                      width={40} 
-                      height={40} 
-                      className="absolute -top-4 -left-3 rotate-25"
-                  />
-              
-              {/* left side */} 
-              <div className="flex gap-3 items-center">
-                  <div className="flex-shrink-0">
-                      <Checkbox />
-                  </div>
-                  <div>
-                      {/* Completed task title */}
-                      <p className="text-xl font-bold text-gray-500 flex items-center gap-2">
-                          Figma Project
-                      </p>
-                      {/* Completed task description */}
-                      <p className="text-sm text-[#92adc9]">Have to start working on the figma design</p>
-                  </div>
-              </div>
-              
-              {/* middle side */}
-              <div className="flex flex-col items-center">
-                  {/* Date created */}
-                  <div className="flex items-center gap-1">
-                      <span>
-                          <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
-                      </span>
-                      <span className="text-sm text-[#92adc9]">
-                          Created 22/03/2026
-                      </span>
-                  </div>
-                  {/* Due date */}
-                  <div className="flex flex-col items-center text-[#92adc9]">
-                      <span className="text-sm">
-                          Due 23/03/2026
-                      </span>
-                      <span className="text-sm">
-                          @ 11:00 PM
-                      </span>
-                  </div>
-              </div>
-              
-              {/* right side */}
-              <div className="flex flex-col items-center">
-                  {/* Date Completed */}
-                  <div className="flex flex-col justify-center items-center">
-                      <span>
-                          <Image src="/stopwatch.png" alt="calendar icon" width={20} height={20} />
-                      </span>
-                      <span className="text-center text-sm text-[#c99292]">
-                        Completed @ 11:30 PM
-                      </span>
-                  </div>
-                  {/* Duration */}
-                  <div className="flex gap-2 items-center">
-                      <span className="text-sm text-center text-[#c99292] pl-6">
-                          Duration: 2 days
-                      </span>
-                  </div>
-              </div>
-              {/* last side */}
-              <div className="text-sm text-[#92adc9]">
-                {/* <span className="flex flex-col justify-center items-center">
-                  <span>
-                    <Image src="/remind1.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Reminded 03/21/2026</p>
-                  <p>@ 11:00 PM</p>
-                </span> */}
-
-                <span className="flex flex-col items-center justify-center gap-2">
-                  <span>
-                    <Image src="/remind.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Not Reminded</p>
-                </span>
-              </div>
-          </div>
-            {/* line 2*/}
-            <div className="flex items-center gap-4">
-              <span className="w-30 font-bold italic">
-                Yesterday
-              </span>
-              <div className="flex-1 border-t border-gray-500 flex justify-center" aria-hidden="true"></div>
-              <span className="pl-26 flex items-center justify-end">
-                <p className="font-bold bg-black/60 rounded-full px-2">3</p>
-              </span>
+                </div>
+              ))}
             </div>
-            {/* Completed tasks B1*/}
-            <div className="relative grid grid-cols-[1fr_auto_auto_auto] bg-[#233648] rounded-xl p-4 gap-4 px-6">
-              <BorderBeam 
-                  colorFrom="#2563EB" 
-                  colorTo="#2563EB"
-                  size={50}
-                  duration={6}
-                  borderThickness={2}
-                  glowIntensity={3}
-              />
-              
-              {/* Priority Star - Show only if completed task was prioritized */}
-                  <Image 
-                      src="/star.gif" 
-                      alt="priority" 
-                      width={40} 
-                      height={40} 
-                      className="absolute -top-4 -left-3 rotate-25"
-                  />
-              
-              {/* left side */} 
-              <div className="flex gap-3 items-center">
-                  <div className="flex-shrink-0">
-                      <Checkbox />
-                  </div>
-                  <div>
-                      {/* Completed task title */}
-                      <p className="text-xl font-bold text-gray-500 flex items-center gap-2">
-                          Figma Project
-                      </p>
-                      {/* Completed task description */}
-                      <p className="text-sm text-[#92adc9]">Have to start working on the figma design</p>
-                  </div>
-              </div>
-              
-              {/* middle side */}
-              <div className="flex flex-col items-center">
-                  {/* Date created */}
-                  <div className="flex items-center gap-1">
-                      <span>
-                          <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
-                      </span>
-                      <span className="text-sm text-[#92adc9]">
-                          Created 22/03/2026
-                      </span>
-                  </div>
-                  {/* Due date */}
-                  <div className="flex flex-col items-center text-[#92adc9]">
-                      <span className="text-sm">
-                          Due 23/03/2026
-                      </span>
-                      <span className="text-sm">
-                          @ 11:00 PM
-                      </span>
-                  </div>
-              </div>
-              
-              {/* right side */}
-              <div className="flex flex-col items-center">
-                  {/* Date Completed */}
-                  <div className="flex flex-col justify-center items-center">
-                      <span>
-                          <Image src="/stopwatch.png" alt="calendar icon" width={20} height={20} />
-                      </span>
-                      <span className="text-center text-sm text-[#c99292]">
-                        Completed @ 11:30 PM
-                      </span>
-                  </div>
-                  {/* Duration */}
-                  <div className="flex gap-2 items-center">
-                      <span className="text-sm text-center text-[#c99292] pl-6">
-                          Duration: 2 days
-                      </span>
-                  </div>
-              </div>
-              {/* last side */}
-              <div className="text-sm text-[#92adc9]">
-                {/* <span className="flex flex-col justify-center items-center">
-                  <span>
-                    <Image src="/remind1.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Reminded 03/21/2026</p>
-                  <p>@ 11:00 PM</p>
-                </span> */}
-
-                <span className="flex flex-col items-center justify-center gap-2">
-                  <span>
-                    <Image src="/remind.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Not Reminded</p>
-                </span>
-              </div>
-          </div>
-            {/* Completed tasks B2*/}
-            <div className="relative grid grid-cols-[1fr_auto_auto_auto] bg-[#233648] rounded-xl p-4 gap-4 px-6">
-              <BorderBeam 
-                  colorFrom="#2563EB" 
-                  colorTo="#2563EB"
-                  size={50}
-                  duration={6}
-                  borderThickness={2}
-                  glowIntensity={3}
-              />
-              
-              {/* Priority Star - Show only if completed task was prioritized */}
-                  <Image 
-                      src="/star.gif" 
-                      alt="priority" 
-                      width={40} 
-                      height={40} 
-                      className="absolute -top-4 -left-3 rotate-25"
-                  />
-              
-              {/* left side */} 
-              <div className="flex gap-3 items-center">
-                  <div className="flex-shrink-0">
-                      <Checkbox />
-                  </div>
-                  <div>
-                      {/* Completed task title */}
-                      <p className="text-xl font-bold text-gray-500 flex items-center gap-2">
-                          Figma Project
-                      </p>
-                      {/* Completed task description */}
-                      <p className="text-sm text-[#92adc9]">Have to start working on the figma design</p>
-                  </div>
-              </div>
-              
-              {/* middle side */}
-              <div className="flex flex-col items-center">
-                  {/* Date created */}
-                  <div className="flex items-center gap-1">
-                      <span>
-                          <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
-                      </span>
-                      <span className="text-sm text-[#92adc9]">
-                          Created 22/03/2026
-                      </span>
-                  </div>
-                  {/* Due date */}
-                  <div className="flex flex-col items-center text-[#92adc9]">
-                      <span className="text-sm">
-                          Due 23/03/2026
-                      </span>
-                      <span className="text-sm">
-                          @ 11:00 PM
-                      </span>
-                  </div>
-              </div>
-              
-              {/* right side */}
-              <div className="flex flex-col items-center">
-                  {/* Date Completed */}
-                  <div className="flex flex-col justify-center items-center">
-                      <span>
-                          <Image src="/stopwatch.png" alt="calendar icon" width={20} height={20} />
-                      </span>
-                      <span className="text-center text-sm text-[#c99292]">
-                        Completed @ 11:30 PM
-                      </span>
-                  </div>
-                  {/* Duration */}
-                  <div className="flex gap-2 items-center">
-                      <span className="text-sm text-center text-[#c99292] pl-6">
-                          Duration: 2 days
-                      </span>
-                  </div>
-              </div>
-              {/* last side */}
-              <div className="text-sm text-[#92adc9]">
-                <span className="flex flex-col justify-center items-center">
-                  <span>
-                    <Image src="/remind1.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Reminded 03/21/2026</p>
-                  <p>@ 11:00 PM</p>
-                </span>
-
-                {/* <span className="flex flex-col items-center justify-center gap-2">
-                  <span>
-                    <Image src="/remind.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Not Reminded</p>
-                </span> */}
-              </div>
-          </div>
-            {/* Completed tasks B3*/}
-            <div className="relative grid grid-cols-[1fr_auto_auto_auto] bg-[#233648] rounded-xl p-4 gap-4 px-6">
-              <BorderBeam 
-                  colorFrom="#2563EB" 
-                  colorTo="#2563EB"
-                  size={50}
-                  duration={6}
-                  borderThickness={2}
-                  glowIntensity={3}
-              />
-              
-              {/* Priority Star - Show only if completed task was prioritized */}
-                  <Image 
-                      src="/star.gif" 
-                      alt="priority" 
-                      width={40} 
-                      height={40} 
-                      className="absolute -top-4 -left-3 rotate-25"
-                  />
-              
-              {/* left side */} 
-              <div className="flex gap-3 items-center">
-                  <div className="flex-shrink-0">
-                      <Checkbox />
-                  </div>
-                  <div>
-                      {/* Completed task title */}
-                      <p className="text-xl font-bold text-gray-500 flex items-center gap-2">
-                          Figma Project
-                      </p>
-                      {/* Completed task description */}
-                      <p className="text-sm text-[#92adc9]">Have to start working on the figma design</p>
-                  </div>
-              </div>
-              
-              {/* middle side */}
-              <div className="flex flex-col items-center">
-                  {/* Date created */}
-                  <div className="flex items-center gap-1">
-                      <span>
-                          <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
-                      </span>
-                      <span className="text-sm text-[#92adc9]">
-                          Created 22/03/2026
-                      </span>
-                  </div>
-                  {/* Due date */}
-                  <div className="flex flex-col items-center text-[#92adc9]">
-                      <span className="text-sm">
-                          Due 23/03/2026
-                      </span>
-                      <span className="text-sm">
-                          @ 11:00 PM
-                      </span>
-                  </div>
-              </div>
-              
-              {/* right side */}
-              <div className="flex flex-col items-center">
-                  {/* Date Completed */}
-                  <div className="flex flex-col justify-center items-center">
-                      <span>
-                          <Image src="/stopwatch.png" alt="calendar icon" width={20} height={20} />
-                      </span>
-                      <span className="text-center text-sm text-[#c99292]">
-                        Completed @ 11:30 PM
-                      </span>
-                  </div>
-                  {/* Duration */}
-                  <div className="flex gap-2 items-center">
-                      <span className="text-sm text-center text-[#c99292] pl-6">
-                          Duration: 2 days
-                      </span>
-                  </div>
-              </div>
-              {/* last side */}
-              <div className="text-sm text-[#92adc9]">
-                {/* <span className="flex flex-col justify-center items-center">
-                  <span>
-                    <Image src="/remind1.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Reminded 03/21/2026</p>
-                  <p>@ 11:00 PM</p>
-                </span> */}
-
-                <span className="flex flex-col items-center justify-center gap-2">
-                  <span>
-                    <Image src="/remind.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Not Reminded</p>
-                </span>
-              </div>
-          </div>
-            {/* line 3*/}
-            <div className="flex items-center gap-4">
-              <span className="w-30 font-bold italic">
-                February 21
-              </span>
-              <div className="flex-1 border-t border-gray-500 flex justify-center" aria-hidden="true"></div>
-              <span className="pl-26 flex items-center justify-end">
-                <p className="font-bold bg-black/60 rounded-full px-2">5</p>
-              </span>
-            </div>
-            {/* Completed tasks C1*/}
-            <div className="relative grid grid-cols-[1fr_auto_auto_auto] bg-[#233648] rounded-xl p-4 gap-4 px-6">
-              <BorderBeam 
-                  colorFrom="#2563EB" 
-                  colorTo="#2563EB"
-                  size={50}
-                  duration={6}
-                  borderThickness={2}
-                  glowIntensity={3}
-              />
-              
-              {/* Priority Star - Show only if completed task was prioritized */}
-                  <Image 
-                      src="/star.gif" 
-                      alt="priority" 
-                      width={40} 
-                      height={40} 
-                      className="absolute -top-4 -left-3 rotate-25"
-                  />
-              
-              {/* left side */} 
-              <div className="flex gap-3 items-center">
-                  <div className="flex-shrink-0">
-                      <Checkbox />
-                  </div>
-                  <div>
-                      {/* Completed task title */}
-                      <p className="text-xl font-bold text-gray-500 flex items-center gap-2">
-                          Figma Project
-                      </p>
-                      {/* Completed task description */}
-                      <p className="text-sm text-[#92adc9]">Have to start working on the figma design</p>
-                  </div>
-              </div>
-              
-              {/* middle side */}
-              <div className="flex flex-col items-center">
-                  {/* Date created */}
-                  <div className="flex items-center gap-1">
-                      <span>
-                          <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
-                      </span>
-                      <span className="text-sm text-[#92adc9]">
-                          Created 22/03/2026
-                      </span>
-                  </div>
-                  {/* Due date */}
-                  <div className="flex flex-col items-center text-[#92adc9]">
-                      <span className="text-sm">
-                          Due 23/03/2026
-                      </span>
-                      <span className="text-sm">
-                          @ 11:00 PM
-                      </span>
-                  </div>
-              </div>
-              
-              {/* right side */}
-              <div className="flex flex-col items-center">
-                  {/* Date Completed */}
-                  <div className="flex flex-col justify-center items-center">
-                      <span>
-                          <Image src="/stopwatch.png" alt="calendar icon" width={20} height={20} />
-                      </span>
-                      <span className="text-center text-sm text-[#c99292]">
-                        Completed @ 11:30 PM
-                      </span>
-                  </div>
-                  {/* Duration */}
-                  <div className="flex gap-2 items-center">
-                      <span className="text-sm text-center text-[#c99292] pl-6">
-                          Duration: 2 days
-                      </span>
-                  </div>
-              </div>
-              {/* last side */}
-              <div className="text-sm text-[#92adc9]">
-                <span className="flex flex-col justify-center items-center">
-                  <span>
-                    <Image src="/remind1.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Reminded 03/21/2026</p>
-                  <p>@ 11:00 PM</p>
-                </span>
-
-                {/* <span className="flex flex-col items-center justify-center gap-2">
-                  <span>
-                    <Image src="/remind.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Not Reminded</p>
-                </span> */}
-              </div>
-          </div>
-            {/* Completed tasks C2*/}
-            <div className="relative grid grid-cols-[1fr_auto_auto_auto] bg-[#233648] rounded-xl p-4 gap-4 px-6">
-              <BorderBeam 
-                  colorFrom="#2563EB" 
-                  colorTo="#2563EB"
-                  size={50}
-                  duration={6}
-                  borderThickness={2}
-                  glowIntensity={3}
-              />
-              
-              {/* Priority Star - Show only if completed task was prioritized */}
-                  <Image 
-                      src="/star.gif" 
-                      alt="priority" 
-                      width={40} 
-                      height={40} 
-                      className="absolute -top-4 -left-3 rotate-25"
-                  />
-              
-              {/* left side */} 
-              <div className="flex gap-3 items-center">
-                  <div className="flex-shrink-0">
-                      <Checkbox />
-                  </div>
-                  <div>
-                      {/* Completed task title */}
-                      <p className="text-xl font-bold text-gray-500 flex items-center gap-2">
-                          Figma Project
-                      </p>
-                      {/* Completed task description */}
-                      <p className="text-sm text-[#92adc9]">Have to start working on the figma design</p>
-                  </div>
-              </div>
-              
-              {/* middle side */}
-              <div className="flex flex-col items-center">
-                  {/* Date created */}
-                  <div className="flex items-center gap-1">
-                      <span>
-                          <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
-                      </span>
-                      <span className="text-sm text-[#92adc9]">
-                          Created 22/03/2026
-                      </span>
-                  </div>
-                  {/* Due date */}
-                  <div className="flex flex-col items-center text-[#92adc9]">
-                      <span className="text-sm">
-                          Due 23/03/2026
-                      </span>
-                      <span className="text-sm">
-                          @ 11:00 PM
-                      </span>
-                  </div>
-              </div>
-              
-              {/* right side */}
-              <div className="flex flex-col items-center">
-                  {/* Date Completed */}
-                  <div className="flex flex-col justify-center items-center">
-                      <span>
-                          <Image src="/stopwatch.png" alt="calendar icon" width={20} height={20} />
-                      </span>
-                      <span className="text-center text-sm text-[#c99292]">
-                        Completed @ 11:30 PM
-                      </span>
-                  </div>
-                  {/* Duration */}
-                  <div className="flex gap-2 items-center">
-                      <span className="text-sm text-center text-[#c99292] pl-6">
-                          Duration: 2 days
-                      </span>
-                  </div>
-              </div>
-              {/* last side */}
-              <div className="text-sm text-[#92adc9]">
-                {/* <span className="flex flex-col justify-center items-center">
-                  <span>
-                    <Image src="/remind1.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Reminded 03/21/2026</p>
-                  <p>@ 11:00 PM</p>
-                </span> */}
-
-                <span className="flex flex-col items-center justify-center gap-2">
-                  <span>
-                    <Image src="/remind.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Not Reminded</p>
-                </span>
-              </div>
-          </div>
-            {/* Completed tasks C3*/}
-            <div className="relative grid grid-cols-[1fr_auto_auto_auto] bg-[#233648] rounded-xl p-4 gap-4 px-6">
-              <BorderBeam 
-                  colorFrom="#2563EB" 
-                  colorTo="#2563EB"
-                  size={50}
-                  duration={6}
-                  borderThickness={2}
-                  glowIntensity={3}
-              />
-              
-              {/* Priority Star - Show only if completed task was prioritized */}
-                  <Image 
-                      src="/star.gif" 
-                      alt="priority" 
-                      width={40} 
-                      height={40} 
-                      className="absolute -top-4 -left-3 rotate-25"
-                  />
-              
-              {/* left side */} 
-              <div className="flex gap-3 items-center">
-                  <div className="flex-shrink-0">
-                      <Checkbox />
-                  </div>
-                  <div>
-                      {/* Completed task title */}
-                      <p className="text-xl font-bold text-gray-500 flex items-center gap-2">
-                          Figma Project
-                      </p>
-                      {/* Completed task description */}
-                      <p className="text-sm text-[#92adc9]">Have to start working on the figma design</p>
-                  </div>
-              </div>
-              
-              {/* middle side */}
-              <div className="flex flex-col items-center">
-                  {/* Date created */}
-                  <div className="flex items-center gap-1">
-                      <span>
-                          <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
-                      </span>
-                      <span className="text-sm text-[#92adc9]">
-                          Created 22/03/2026
-                      </span>
-                  </div>
-                  {/* Due date */}
-                  <div className="flex flex-col items-center text-[#92adc9]">
-                      <span className="text-sm">
-                          Due 23/03/2026
-                      </span>
-                      <span className="text-sm">
-                          @ 11:00 PM
-                      </span>
-                  </div>
-              </div>
-              
-              {/* right side */}
-              <div className="flex flex-col items-center">
-                  {/* Date Completed */}
-                  <div className="flex flex-col justify-center items-center">
-                      <span>
-                          <Image src="/stopwatch.png" alt="calendar icon" width={20} height={20} />
-                      </span>
-                      <span className="text-center text-sm text-[#c99292]">
-                        Completed @ 11:30 PM
-                      </span>
-                  </div>
-                  {/* Duration */}
-                  <div className="flex gap-2 items-center">
-                      <span className="text-sm text-center text-[#c99292] pl-6">
-                          Duration: 2 days
-                      </span>
-                  </div>
-              </div>
-              {/* last side */}
-              <div className="text-sm text-[#92adc9]">
-                <span className="flex flex-col justify-center items-center">
-                  <span>
-                    <Image src="/remind1.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Reminded 03/21/2026</p>
-                  <p>@ 11:00 PM</p>
-                </span>
-
-                {/* <span className="flex flex-col items-center justify-center gap-2">
-                  <span>
-                    <Image src="/remind.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Not Reminded</p>
-                </span> */}
-              </div>
-          </div>
-            {/* Completed tasks C4*/}
-            <div className="relative grid grid-cols-[1fr_auto_auto_auto] bg-[#233648] rounded-xl p-4 gap-4 px-6">
-              <BorderBeam 
-                  colorFrom="#2563EB" 
-                  colorTo="#2563EB"
-                  size={50}
-                  duration={6}
-                  borderThickness={2}
-                  glowIntensity={3}
-              />
-              
-              {/* Priority Star - Show only if completed task was prioritized */}
-                  <Image 
-                      src="/star.gif" 
-                      alt="priority" 
-                      width={40} 
-                      height={40} 
-                      className="absolute -top-4 -left-3 rotate-25"
-                  />
-              
-              {/* left side */} 
-              <div className="flex gap-3 items-center">
-                  <div className="flex-shrink-0">
-                      <Checkbox />
-                  </div>
-                  <div>
-                      {/* Completed task title */}
-                      <p className="text-xl font-bold text-gray-500 flex items-center gap-2">
-                          Figma Project
-                      </p>
-                      {/* Completed task description */}
-                      <p className="text-sm text-[#92adc9]">Have to start working on the figma design</p>
-                  </div>
-              </div>
-              
-              {/* middle side */}
-              <div className="flex flex-col items-center">
-                  {/* Date created */}
-                  <div className="flex items-center gap-1">
-                      <span>
-                          <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
-                      </span>
-                      <span className="text-sm text-[#92adc9]">
-                          Created 22/03/2026
-                      </span>
-                  </div>
-                  {/* Due date */}
-                  <div className="flex flex-col items-center text-[#92adc9]">
-                      <span className="text-sm">
-                          Due 23/03/2026
-                      </span>
-                      <span className="text-sm">
-                          @ 11:00 PM
-                      </span>
-                  </div>
-              </div>
-              
-              {/* right side */}
-              <div className="flex flex-col items-center">
-                  {/* Date Completed */}
-                  <div className="flex flex-col justify-center items-center">
-                      <span>
-                          <Image src="/stopwatch.png" alt="calendar icon" width={20} height={20} />
-                      </span>
-                      <span className="text-center text-sm text-[#c99292]">
-                        Completed @ 11:30 PM
-                      </span>
-                  </div>
-                  {/* Duration */}
-                  <div className="flex gap-2 items-center">
-                      <span className="text-sm text-center text-[#c99292] pl-6">
-                          Duration: 2 days
-                      </span>
-                  </div>
-              </div>
-              {/* last side */}
-              <div className="text-sm text-[#92adc9]">
-                <span className="flex flex-col justify-center items-center">
-                  <span>
-                    <Image src="/remind1.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Reminded 03/21/2026</p>
-                  <p>@ 11:00 PM</p>
-                </span>
-
-                {/* <span className="flex flex-col items-center justify-center gap-2">
-                  <span>
-                    <Image src="/remind.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Not Reminded</p>
-                </span> */}
-              </div>
-          </div>
-            {/* Completed tasks C5*/}
-            <div className="relative grid grid-cols-[1fr_auto_auto_auto] bg-[#233648] rounded-xl p-4 gap-4 px-6">
-              <BorderBeam 
-                  colorFrom="#2563EB" 
-                  colorTo="#2563EB"
-                  size={50}
-                  duration={6}
-                  borderThickness={2}
-                  glowIntensity={3}
-              />
-              
-              {/* Priority Star - Show only if completed task was prioritized */}
-                  <Image 
-                      src="/star.gif" 
-                      alt="priority" 
-                      width={40} 
-                      height={40} 
-                      className="absolute -top-4 -left-3 rotate-25"
-                  />
-              
-              {/* left side */} 
-              <div className="flex gap-3 items-center">
-                  <div className="flex-shrink-0">
-                      <Checkbox />
-                  </div>
-                  <div>
-                      {/* Completed task title */}
-                      <p className="text-xl font-bold text-gray-500 flex items-center gap-2">
-                          Figma Project
-                      </p>
-                      {/* Completed task description */}
-                      <p className="text-sm text-[#92adc9]">Have to start working on the figma design</p>
-                  </div>
-              </div>
-              
-              {/* middle side */}
-              <div className="flex flex-col items-center">
-                  {/* Date created */}
-                  <div className="flex items-center gap-1">
-                      <span>
-                          <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
-                      </span>
-                      <span className="text-sm text-[#92adc9]">
-                          Created 22/03/2026
-                      </span>
-                  </div>
-                  {/* Due date */}
-                  <div className="flex flex-col items-center text-[#92adc9]">
-                      <span className="text-sm">
-                          Due 23/03/2026
-                      </span>
-                      <span className="text-sm">
-                          @ 11:00 PM
-                      </span>
-                  </div>
-              </div>
-              
-              {/* right side */}
-              <div className="flex flex-col items-center">
-                  {/* Date Completed */}
-                  <div className="flex flex-col justify-center items-center">
-                      <span>
-                          <Image src="/stopwatch.png" alt="calendar icon" width={20} height={20} />
-                      </span>
-                      <span className="text-center text-sm text-[#c99292]">
-                        Completed @ 11:30 PM
-                      </span>
-                  </div>
-                  {/* Duration */}
-                  <div className="flex gap-2 items-center">
-                      <span className="text-sm text-center text-[#c99292] pl-6">
-                          Duration: 2 days
-                      </span>
-                  </div>
-              </div>
-              {/* last side */}
-              <div className="text-sm text-[#92adc9]">
-                {/* <span className="flex flex-col justify-center items-center">
-                  <span>
-                    <Image src="/remind1.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Reminded 03/21/2026</p>
-                  <p>Reminded @ 11:00 PM</p>
-                </span> */}
-
-                <span className="flex flex-col items-center justify-center gap-2">
-                  <span>
-                    <Image src="/remind.png" alt="reminder icon" width={18} height={18} />
-                  </span>
-                  <p>Not Reminded</p>
-                </span>
-              </div>
-          </div>
-
-          </div>
+          ))
+        )}
       </div>
+
+      {isUndoModalOpen && undoingTask && 
+        <CompleteTask
+          task={undoingTask}
+          onClose={() => {
+            setIsUndoModalOpen(false);
+            setUndoingTask(null);
+          }}
+          onConfirm={handleUndoTask}
+          action="undo"
+        />
+      }
     </div>
   );
 }

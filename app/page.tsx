@@ -1,3 +1,4 @@
+// app/page.tsx (HomePage component)
 "use client";
 import {useState, useEffect} from 'react';
 import Image from 'next/image';
@@ -11,8 +12,8 @@ import GlassToggle from './components/glassToggle';
 import {getTasks} from '@/lib/api';
 import RippleLoader from './components/ripple-loader';
 import DeleteTask from './components/deleteTask';
+import CompleteTask from './components/completeTask'; // Import the new component
 import {Pattern} from './components/patterns/p-dropdown-menu-12';
-import { Star } from "lucide-react";
 import Checkbox from "./components/checkBox";
 
 export default function HomePage() {
@@ -26,12 +27,16 @@ export default function HomePage() {
     const [deletingTask, setDeletingTask] = useState(null);
     const [activeTab, setActiveTab] = useState("today");
     const [filteredTasks, setFilteredTasks] = useState([]);
+    const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+    const [completingTask, setCompletingTask] = useState<any>(null);
 
     const fetchTasks = async () => {
         try {
             const tasksData = await getTasks();
+            // Filter only incomplete tasks
+            const incompleteTasks = tasksData.filter((task: any) => !task.completed);
             // Convert date strings to Date objects
-            const tasksWithDates = tasksData.map((task: any) => ({
+            const tasksWithDates = incompleteTasks.map((task: any) => ({
                 ...task,
                 dateCreated: task.dateCreated ? new Date(task.dateCreated) : new Date(),
                 dueDate: task.dueDate ? new Date(task.dueDate) : new Date(),
@@ -54,7 +59,8 @@ export default function HomePage() {
             // If current tab is "priority", automatically set priority to true
             const taskWithPriority = {
                 ...taskData,
-                priority: activeTab === "priority" ? true : taskData.priority
+                priority: activeTab === "priority" ? true : taskData.priority,
+                completed: false // New tasks are not completed
             };
 
             const res = await fetch("/api/tasks", {
@@ -183,6 +189,31 @@ export default function HomePage() {
         }
     };
 
+    // Handle task completion
+    const handleCompleteTask = async (taskId: string) => {
+  try {
+    const response = await fetch(`/api/tasks/${taskId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: "completed",
+        completed: true,
+        completedAt: new Date(),
+      }),
+    });
+
+    if (!response.ok) throw new Error("Failed");
+
+    // Remove from active list immediately
+    setTasks(prev => prev.filter(t => (t._id || t.id) !== taskId));
+
+  } catch (err) {
+    console.error(err);
+  }
+};
+
     // Filter tasks when activeTab or tasks change
     useEffect(() => {
         const filtered = filterTasksByTab(tasks, activeTab);
@@ -303,15 +334,17 @@ export default function HomePage() {
                             {/* left side */} 
                             <div className="flex gap-3 items-center">
                                 <div className="flex-shrink-0">
-                                    {/* <input type="checkbox" className="w-4 h-4 mr-2 cursor-pointer" /> */}
-                                    <Checkbox />
+                                    <Checkbox 
+                                        checked={false} // or some state if you want
+                                        onChange={() => {
+                                            setCompletingTask(task);
+                                            setIsCompleteModalOpen(true);
+                                        }}
+                                    />
                                 </div>
                                 <div>
                                     <p className="text-xl font-bold flex items-center gap-2">
                                         {task.title}
-                                        {/* {task.priority && (
-                                            <Star className="h-5 w-5 text-yellow-500 inline-block" fill="currentColor" />
-                                        )} */}
                                     </p>
                                     <p className="text-sm text-[#92adc9]">{task.description}</p>
                                 </div>
@@ -411,6 +444,18 @@ export default function HomePage() {
                     onDelete={deleteTask}
                 />
             }
+
+            {isCompleteModalOpen && completingTask && (
+                <CompleteTask
+                    task={completingTask}
+                    onClose={() => {
+                    setIsCompleteModalOpen(false);
+                    setCompletingTask(null);
+                    }}
+                    onConfirm={handleCompleteTask}
+                    action="complete"
+                />
+                )}
         </div>
     );
 }
