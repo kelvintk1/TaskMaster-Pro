@@ -1,4 +1,3 @@
-// app/page.tsx (HomePage component)
 "use client";
 import {useState, useEffect} from 'react';
 import Image from 'next/image';
@@ -8,11 +7,11 @@ import Tabs from './components/tabs';
 import CreateTask from './components/createTask';
 import EditTask from './components/editTask';
 import { BorderBeam } from './components/borderBeam';
-import GlassToggle from './components/glassToggle';
+import GlassToggle from './components/glassToggle';2
 import {getTasks} from '@/lib/api';
 import RippleLoader from './components/ripple-loader';
 import DeleteTask from './components/deleteTask';
-import CompleteTask from './components/completeTask'; // Import the new component
+import CompleteTask from './components/completeTask';
 import {Pattern} from './components/patterns/p-dropdown-menu-12';
 import Checkbox from "./components/checkBox";
 
@@ -25,7 +24,7 @@ export default function HomePage() {
     const [editingTask, setEditingTask] = useState(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [deletingTask, setDeletingTask] = useState(null);
-    const [activeTab, setActiveTab] = useState("today");
+    const [activeTab, setActiveTab] = useState("all");
     const [filteredTasks, setFilteredTasks] = useState([]);
     const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
     const [completingTask, setCompletingTask] = useState<any>(null);
@@ -191,28 +190,33 @@ export default function HomePage() {
 
     // Handle task completion
     const handleCompleteTask = async (taskId: string) => {
-  try {
-    const response = await fetch(`/api/tasks/${taskId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        status: "completed",
-        completed: true,
-        completedAt: new Date(),
-      }),
-    });
+        try {
+            const response = await fetch(`/api/tasks/${taskId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    status: "completed",
+                    completed: true,
+                    completedAt: new Date(),
+                }),
+            });
 
-    if (!response.ok) throw new Error("Failed");
+            if (!response.ok) throw new Error("Failed");
 
-    // Remove from active list immediately
-    setTasks(prev => prev.filter(t => (t._id || t.id) !== taskId));
+            // Remove from active list immediately
+            setTasks(prev => prev.filter(t => (t._id || t.id) !== taskId));
 
-  } catch (err) {
-    console.error(err);
-  }
-};
+            // Dispatch event to notify other pages
+            localStorage.setItem('taskCompleted', Date.now().toString());
+            localStorage.removeItem('taskCompleted');
+
+        } catch (err) {
+            console.error(err);
+            alert('Failed to complete task');
+        }
+    };
 
     // Filter tasks when activeTab or tasks change
     useEffect(() => {
@@ -220,40 +224,95 @@ export default function HomePage() {
         setFilteredTasks(filtered);
     }, [activeTab, tasks]);
 
-    // Filter function
+    // Function to calculate time difference in milliseconds
+    const getTimeDifference = (dueDate: Date) => {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const due = new Date(dueDate);
+        due.setHours(0, 0, 0, 0);
+        return due.getTime() - now.getTime();
+    };
+
+    // Filter function with sorting for upcoming tasks
     const filterTasksByTab = (tasks, tab) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setDate(today.getDate() + 1);
 
         const endOfWeek = new Date(today);
-        endOfWeek.setDate(endOfWeek.getDate() + 7); // End of next 7 days
+        endOfWeek.setDate(today.getDate() + 7);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        const isOverdue = (task) => {
+            const due = new Date(task.dueDate);
+            due.setHours(0, 0, 0, 0);
+            return due < today;
+        };
+
+        // 🚨 REMOVE overdue tasks globally
+        const activeTasks = tasks.filter(task => !isOverdue(task));
+
+        let filtered = [];
 
         switch (tab) {
             case "today":
-                return tasks.filter(task => {
+                filtered = activeTasks.filter(task => {
                     const taskDate = new Date(task.dueDate);
                     taskDate.setHours(0, 0, 0, 0);
                     return taskDate.getTime() === today.getTime();
                 });
+                // Sort by due time (earliest first for today)
+                filtered.sort((a, b) => {
+                    const timeA = new Date(a.dueDate).getTime();
+                    const timeB = new Date(b.dueDate).getTime();
+                    return timeA - timeB;
+                });
+                break;
 
             case "upcoming":
-                return tasks.filter(task => {
+                // Filter tasks within this week (excluding today)
+                filtered = activeTasks.filter(task => {
                     const taskDate = new Date(task.dueDate);
                     taskDate.setHours(0, 0, 0, 0);
-                    // Tasks from tomorrow to end of week
+                    // Only include tasks from tomorrow to end of week
                     return taskDate > today && taskDate <= endOfWeek;
                 });
+                
+                // ✅ SORT BY CLOSEST DUE DATE/TIME FIRST
+                filtered.sort((a, b) => {
+                    const dueA = new Date(a.dueDate).getTime();
+                    const dueB = new Date(b.dueDate).getTime();
+                    return dueA - dueB; // Ascending order - closest first
+                });
+                break;
 
             case "priority":
-                return tasks.filter(task => task.priority === true);
+                filtered = activeTasks.filter(task => task.priority === true);
+                // Sort by date created (newest first) for priority tasks
+                filtered.sort((a, b) =>
+                    new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime()
+                );
+                break;
 
             case "all":
             default:
-                return tasks;
+                filtered = activeTasks;
+                // Sort by date created (newest first) for all tasks
+                filtered.sort((a, b) =>
+                    new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime()
+                );
         }
+
+        return filtered;
+    };
+
+    const isDueSoon = (task) => {
+        const now = new Date();
+        const due = new Date(task.dueDate);
+        const diff = (due.getTime() - now.getTime()) / (1000 * 60 * 60);
+        return diff <= 24 && diff >= 0; // within 24h
     };
 
     return(
@@ -310,10 +369,10 @@ export default function HomePage() {
                     </div>
                 ) : (
                     filteredTasks.map(task => (
-                        <div key={task._id} className="relative grid grid-cols-[1fr_auto_auto_auto] bg-[#233648] rounded-xl p-4 px-6">
+                        <div key={task._id} className={`relative grid grid-cols-[1fr_auto_auto_auto] rounded-xl p-4 px-6 bg-[#233648]`}>
                             <BorderBeam 
                                 colorFrom="#2563EB" 
-                                colorTo="#2563EB"
+                                colorTo="#5085f7"
                                 size={50}
                                 duration={6}
                                 borderThickness={2}
@@ -335,7 +394,7 @@ export default function HomePage() {
                             <div className="flex gap-3 items-center">
                                 <div className="flex-shrink-0">
                                     <Checkbox 
-                                        checked={false} // or some state if you want
+                                        checked={false}
                                         onChange={() => {
                                             setCompletingTask(task);
                                             setIsCompleteModalOpen(true);

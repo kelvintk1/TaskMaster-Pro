@@ -1,11 +1,9 @@
-// app/completed/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { GlowCard } from "../components/spotlight-card";
 import { ProgressBar } from "../components/progress-bar";
 import { CountUp } from "../components/count-up"; 
-import { animate } from "framer-motion";
 import { BorderBeam } from '../components/borderBeam';
 import Checkbox from "../components/checkBox";
 import Image from "next/image";
@@ -24,27 +22,31 @@ export default function CompletedPage() {
     priority: 0,
     monthly: 0
   });
+  const [monthlyTotalTasks, setMonthlyTotalTasks] = useState(0);
 
-const fetchCompletedTasks = async () => {
-  try {
-    const tasksData = await getTasks();
-    // Filter completed tasks (using both status and completed field)
-    const completed = tasksData.filter((task: any) => 
-      task.completed === true || task.status === 'completed'
-    );
-    
-    // Convert date strings to Date objects
-    const tasksWithDates = completed.map((task: any) => ({
-      ...task,
-      dateCreated: task.dateCreated ? new Date(task.dateCreated) : new Date(),
-      dueDate: task.dueDate ? new Date(task.dueDate) : new Date(),
-      reminderDate: task.reminderDate ? new Date(task.reminderDate) : null,
-      completedAt: task.completedAt ? new Date(task.completedAt) : new Date()
-    }));
-    
-    setCompletedTasks(tasksWithDates);
+  const fetchCompletedTasks = async () => {
+    try {
+      const tasksData = await getTasks();
       
-      // Calculate stats
+      const completed = tasksData.filter((task: any) => 
+        task.completed === true || task.status === 'completed'
+      );
+      
+      const tasksWithDates = completed.map((task: any) => ({
+        ...task,
+        dateCreated: task.dateCreated ? new Date(task.dateCreated) : new Date(),
+        dueDate: task.dueDate ? new Date(task.dueDate) : new Date(),
+        reminderDate: task.reminderDate ? new Date(task.reminderDate) : null,
+        completedAt: task.completedAt ? new Date(task.completedAt) : new Date()
+      }));
+
+      // ✅ SORT: NEWEST COMPLETED FIRST
+      tasksWithDates.sort((a, b) =>
+        new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+      );
+      
+      setCompletedTasks(tasksWithDates);
+      
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
@@ -53,17 +55,25 @@ const fetchCompletedTasks = async () => {
       startOfWeek.setHours(0, 0, 0, 0);
       
       const weeklyCompleted = tasksWithDates.filter(task => {
-        const completedDate = task.completedAt ? new Date(task.completedAt) : new Date();
+        const completedDate = new Date(task.completedAt);
         return completedDate >= startOfWeek;
       }).length;
       
       const monthlyCompleted = tasksWithDates.filter(task => {
-        const completedDate = task.completedAt ? new Date(task.completedAt) : new Date();
+        const completedDate = new Date(task.completedAt);
         return completedDate.getMonth() === currentMonth && 
                completedDate.getFullYear() === currentYear;
       }).length;
       
       const priorityCompleted = tasksWithDates.filter(task => task.priority === true).length;
+      
+      const totalTasksThisMonth = tasksData.filter((task: any) => {
+        const createdDate = task.dateCreated ? new Date(task.dateCreated) : new Date();
+        return createdDate.getMonth() === currentMonth && 
+               createdDate.getFullYear() === currentYear;
+      }).length;
+      
+      setMonthlyTotalTasks(totalTasksThisMonth);
       
       setStats({
         total: tasksWithDates.length,
@@ -79,11 +89,22 @@ const fetchCompletedTasks = async () => {
     }
   };
 
+  // Listen for task completion/undo events from other tabs/windows
+  useEffect(() => {
+    const handleTaskUpdate = (event: StorageEvent) => {
+      if (event.key === 'taskCompleted' || event.key === 'taskUndone') {
+        fetchCompletedTasks(); // Refresh completed tasks
+      }
+    };
+    
+    window.addEventListener('storage', handleTaskUpdate);
+    return () => window.removeEventListener('storage', handleTaskUpdate);
+  }, []);
+
   useEffect(() => {
     fetchCompletedTasks();
   }, []);
 
-  // Handle undo task completion
   const handleUndoTask = async (taskId: string) => {
     try {
       const taskToUndo = completedTasks.find(t => (t._id || t.id) === taskId);
@@ -98,31 +119,17 @@ const fetchCompletedTasks = async () => {
 
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedTask)
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to undo task');
-      }
+      if (!response.ok) throw new Error('Failed to undo task');
 
-      // Remove the undone task from completed tasks
       setCompletedTasks(prev => prev.filter(task => (task._id || task.id) !== taskId));
       
-      // Update stats
-      const isWeeklyTask = taskToUndo.completedAt && 
-        new Date(taskToUndo.completedAt) >= new Date(new Date().setDate(new Date().getDate() - new Date().getDay()));
-      const isMonthlyTask = taskToUndo.completedAt && 
-        new Date(taskToUndo.completedAt).getMonth() === new Date().getMonth();
-      
-      setStats(prev => ({
-        total: Math.max(0, prev.total - 1),
-        weekly: isWeeklyTask ? Math.max(0, prev.weekly - 1) : prev.weekly,
-        priority: taskToUndo.priority ? Math.max(0, prev.priority - 1) : prev.priority,
-        monthly: isMonthlyTask ? Math.max(0, prev.monthly - 1) : prev.monthly
-      }));
+      // Dispatch event to notify other components/pages
+      localStorage.setItem('taskUndone', Date.now().toString());
+      localStorage.removeItem('taskUndone');
       
       alert('Task moved back to active tasks!');
       
@@ -132,40 +139,60 @@ const fetchCompletedTasks = async () => {
     }
   };
 
-  // Group tasks by completion date
+  // ✅ GROUP + KEEP ORDER (NEWEST FIRST)
   const groupTasksByDate = () => {
-    const groups: { [key: string]: any[] } = {};
-    
+    const groups: { title: string; tasks: any[] }[] = [];
+
+    const map: { [key: string]: any[] } = {};
+
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
     completedTasks.forEach(task => {
-      const completedDate = task.completedAt ? new Date(task.completedAt) : new Date();
-      const today = new Date();
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-      
-      let dateKey;
-      if (completedDate.toDateString() === today.toDateString()) {
-        dateKey = 'Today';
-      } else if (completedDate.toDateString() === yesterday.toDateString()) {
-        dateKey = 'Yesterday';
-      } else {
-        dateKey = completedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-      }
-      
-      if (!groups[dateKey]) {
-        groups[dateKey] = [];
-      }
-      groups[dateKey].push(task);
+        const completedDate = new Date(task.completedAt);
+
+        let key;
+
+        if (completedDate.toDateString() === today.toDateString()) {
+        key = "Today";
+        } else if (completedDate.toDateString() === yesterday.toDateString()) {
+        key = "Yesterday";
+        } else {
+        key = completedDate.toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+        });
+        }
+
+        if (!map[key]) map[key] = [];
+        map[key].push(task);
     });
-    
+
+    // 🔥 ORDER GROUPS PROPERLY
+    const sortedKeys = Object.keys(map).sort((a, b) => {
+        if (a === "Today") return -1;
+        if (b === "Today") return 1;
+        if (a === "Yesterday") return -1;
+        if (b === "Yesterday") return 1;
+
+        return new Date(b).getTime() - new Date(a).getTime();
+    });
+
+    sortedKeys.forEach(key => {
+        groups.push({
+        title: key,
+        tasks: map[key],
+        });
+    });
+
     return groups;
-  };
+    };
 
   const groupedTasks = groupTasksByDate();
-  const totalCompleted = completedTasks.length;
 
-  // Ensure we have valid numbers for the progress bar
-  const progressValue = isNaN(stats.monthly) ? 0 : stats.monthly;
-  const progressMax = totalCompleted === 0 ? 1 : totalCompleted; // Avoid division by zero
+  const progressValue = stats.monthly || 0;
+  const progressMax = monthlyTotalTasks || 1;
 
   return (
     <div className="p-2">
@@ -192,7 +219,7 @@ const fetchCompletedTasks = async () => {
               <span className="text-sm italic">out of</span>
               <span className="text-xl font-semibold">
                  <CountUp 
-                  value={totalCompleted}
+                  value={monthlyTotalTasks}
                   duration={1.5}
                   colorScheme="custom"
                   customColor="#1814ee"
@@ -207,8 +234,8 @@ const fetchCompletedTasks = async () => {
             </span>
           </div>
           
-          {/* Progress Bar with safe values */}
-          {!loading && totalCompleted > 0 && (
+          {/* Progress Bar with correct values */}
+          {!loading && monthlyTotalTasks > 0 && (
             <div className="">
               <ProgressBar
                 max={progressMax}
@@ -284,7 +311,7 @@ const fetchCompletedTasks = async () => {
         {loading ? (
           <div className="w-full h-full flex flex-col gap-2 items-center justify-center"> 
             <RippleLoader />
-            <span className="text-[#92adc9] text-xl font-semibold mt-4">Loading completed tasks...</span>
+            <span className="text-[#92adc9] text-xl font-semibold mt-4">Loading tasks...</span>
           </div>
         ) : completedTasks.length === 0 ? (
           <div className="w-full h-full flex flex-col gap-5 items-center justify-center">
@@ -295,12 +322,12 @@ const fetchCompletedTasks = async () => {
             <span className="text-gray-400">Complete tasks to see them here!</span>
           </div>
         ) : (
-          Object.entries(groupedTasks).map(([date, tasks]) => (
-            <div key={date} className="flex flex-col gap-2">
+          groupedTasks.map(({ title, tasks }) => (
+            <div key={title} className="flex flex-col gap-2">
               {/* Date header */}
               <div className="flex items-center gap-4">
                 <span className="w-30 font-bold italic">
-                  {date}
+                  {title}
                 </span>
                 <div className="flex-1 border-t border-gray-500 flex justify-center" aria-hidden="true"></div>
                 <span className="pl-26 flex items-center justify-end">
@@ -309,7 +336,7 @@ const fetchCompletedTasks = async () => {
               </div>
               
               {/* Completed tasks for this date */}
-              {tasks.map(task => (
+              {(tasks || []).map(task => (
                 <div key={task._id} className="relative grid grid-cols-[1fr_auto_auto_auto] gap-4 bg-[#233648] rounded-xl p-4 px-6">
                   <BorderBeam 
                       colorFrom="#2563EB" 

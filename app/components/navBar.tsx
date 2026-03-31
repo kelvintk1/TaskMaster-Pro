@@ -12,14 +12,7 @@ const navItems = [
     icon: "/taskWhite.png",
     activeIcon: "/task-B.png",
     href: "/",
-  },
-  {
-    id: "budgets",
-    label: "Budgets",
-    icon: "/budgetwhite.png",
-    activeIcon: "/dollar-B.png",
-    href: "/budgets",
-  },
+  }, 
   {
     id: "completed",
     label: "Completed",
@@ -79,9 +72,9 @@ export default function NavBar() {
             <Link
               key={item.id}
               href={item.href}
-              className={`flex items-center gap-6 px-6 py-4 cursor-pointer hover:scale-103
+              className={`flex items-center gap-6 px-6 py-4 cursor-pointer group
                 transition-all duration-200
-                ${isActive ? "bg-[#233648] rounded-3xl" : ""}
+                ${isActive ? "bg-[#233648] rounded-3xl border-r-6 border-blue-800 " : ""}
               `}
             >
               {/* Icon */}
@@ -95,7 +88,7 @@ export default function NavBar() {
 
               {/* Text */}
               <div
-                className={`overflow-hidden transition-all duration-300
+                className={`overflow-hidden group-hover:scale-115 transition-all duration-300
                 ${expanded ? "max-w-[200px]" : "max-w-0"}`}
               >
                 <span
