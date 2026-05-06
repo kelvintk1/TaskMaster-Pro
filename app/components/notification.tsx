@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useTasks } from "../context/TaskContext";
 
 interface Alert {
@@ -13,7 +14,8 @@ interface Alert {
 }
 
 export default function Notification() {
-  const { tasks, loading, error } = useTasks();
+  const router = useRouter();
+  const { tasks, loading, error, refreshTasks } = useTasks();
   const [open, setOpen] = useState(false);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -171,12 +173,19 @@ export default function Notification() {
                   <button
                     key={alert.id}
                     onClick={() => {
-                        const taskId = alert.id.split('-')[0]; // Handle reminder IDs like taskid-reminder
-                        router.push(`/#task-${taskId}`);
+                        const taskId = alert.id.split('-')[0];
+                        const targetPath = alert.type === 'overdue' ? '/uncompleted' : '/';
+                        
+                        router.push(`${targetPath}#task-${taskId}`);
+                        
+                        // Force scroll even if on same page
                         setTimeout(() => {
                             const el = document.getElementById(`task-${taskId}`);
-                            if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                        }, 100);
+                            if (el) {
+                              el.scrollIntoView({ behavior: "smooth", block: "center" });
+                            }
+                        }, 300);
+                        
                         setOpen(false);
                     }}
                     className="flex items-start gap-3 p-3 rounded-xl hover:bg-[#233648]/60 transition-all text-left cursor-pointer group"

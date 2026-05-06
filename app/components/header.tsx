@@ -58,7 +58,12 @@ export default function Header() {
 
   const handleResultClick = (task: Task) => {
     const taskId = task._id || task.id;
-    const targetHref = task.completed ? "/completed" : "/";
+    const due = task.dueDate ? new Date(task.dueDate) : null;
+    const isOverdue = due && due < new Date() && !task.completed;
+    
+    let targetHref = "/";
+    if (task.completed) targetHref = "/completed";
+    else if (isOverdue) targetHref = "/uncompleted";
     
     // Clear search
     setQuery("");
@@ -69,8 +74,8 @@ export default function Header() {
     
     setTimeout(() => {
         const el = document.getElementById(`task-${taskId}`);
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 300);
   };
 
   return (

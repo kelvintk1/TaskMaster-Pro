@@ -70,9 +70,15 @@ export default function TasksPage() {
 
     // ✅ ONLY OVERDUE TASKS
     const overdueTasks = tasksWithDates.filter(task => {
+      if (!task.dueDate) return false;
       const due = new Date(task.dueDate);
-      due.setHours(0, 0, 0, 0);
-      return due < now;
+      if (task.dueTime) {
+        const [hours, minutes] = task.dueTime.split(':');
+        due.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      } else {
+        due.setHours(23, 59, 59, 999);
+      }
+      return due < new Date();
     });
 
     // ✅ SORT: NEWEST OVERDUE FIRST

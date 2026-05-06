@@ -171,9 +171,15 @@ export default function HomePage() {
         endOfWeek.setHours(23, 59, 59, 999);
 
         const isOverdue = (task: any) => {
+            if (!task.dueDate) return false;
             const due = new Date(task.dueDate);
-            due.setHours(0, 0, 0, 0);
-            return due < today;
+            if (task.dueTime) {
+                const [hours, minutes] = task.dueTime.split(':');
+                due.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+            } else {
+                due.setHours(23, 59, 59, 999); // End of day if no time
+            }
+            return due < new Date();
         };
 
         const activeTasks = tasks.filter(task => !isOverdue(task));

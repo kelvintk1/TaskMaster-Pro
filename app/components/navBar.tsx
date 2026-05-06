@@ -79,14 +79,14 @@ export default function NavBar() {
             <Link
               key={item.id}
               href={item.href}
-              className={`flex flex-col md:flex-row items-center gap-1 md:gap-6 px-4 py-3 md:px-0 md:py-4 cursor-pointer group
-                transition-all duration-300 flex-1 md:flex-initial justify-center
-                ${isActive ? "bg-[#233648]/40 md:bg-[#233648] md:border-r-4 border-blue-600 rounded-2xl " : ""}
-                ${expanded ? "md:px-6" : "md:px-0"}
+              className={`flex flex-col md:flex-row items-center gap-1 md:gap-6 px-4 py-3 md:py-4 cursor-pointer group
+                transition-all duration-300 flex-1 md:flex-initial
+                ${isActive ? "bg-[#233648]/60 md:bg-[#233648] md:border-r-4 border-blue-600 rounded-2xl" : "hover:bg-[#233648]/30 rounded-2xl"}
+                ${expanded ? "md:justify-start md:px-6 md:w-full" : "md:justify-center md:px-0 md:w-full"}
               `}
             >
               {/* Icon */}
-              <div className={`relative flex items-center justify-center transition-all duration-300 flex-shrink-0 ${!expanded ? "md:w-20" : ""}`}>
+              <div className="relative flex items-center justify-center transition-all duration-300 flex-shrink-0">
                 <Image
                   src={isActive ? item.activeIcon : item.icon}
                   alt={item.label}
@@ -98,13 +98,13 @@ export default function NavBar() {
 
               {/* Text */}
               <div
-                className={`overflow-hidden transition-all duration-500
-                ${expanded ? "max-w-[200px] ml-0" : "md:max-w-0 md:ml-0"}`}
+                className={`overflow-hidden transition-all duration-300
+                ${expanded ? "max-w-[200px] opacity-100" : "md:max-w-0 md:opacity-0"}`}
               >
                 <span
                   className={`block text-[10px] md:text-[14px] whitespace-nowrap transition-all duration-300 
                   ${isActive ? "font-bold text-blue-400 md:text-white" : "text-[#92adc9]"}
-                  ${expanded ? "opacity-100 translate-x-0" : "md:opacity-0 md:-translate-x-10"}`}
+                `}
                 >
                   {item.label}
                 </span>
