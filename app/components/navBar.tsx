@@ -50,7 +50,7 @@ export default function NavBar() {
 
   return (
     <aside
-      className={`fixed bottom-0 left-0 right-0 z-[1000] bg-[#101922] border-t border-[#1e3246] md:relative md:border-t-0 md:h-full md:shadow-xl md:shadow-black/40 transition-all duration-300
+      className={`fixed bottom-0 left-0 right-0 z-[1000] bg-[#101922]/95 backdrop-blur-md border-t border-[#1e3246]/50 md:relative md:border-t-0 md:h-full md:shadow-xl md:shadow-black/40 transition-all duration-300
         ${expanded ? "md:w-56" : "md:w-20"}
       `}
     >
@@ -102,7 +102,7 @@ export default function NavBar() {
                 ${expanded ? "max-w-[200px] opacity-100" : "md:max-w-0 md:opacity-0"}`}
               >
                 <span
-                  className={`block text-[10px] md:text-[14px] whitespace-nowrap transition-all duration-300 
+                  className={`block text-[11px] md:text-[14px] font-medium whitespace-nowrap transition-all duration-300 
                   ${isActive ? "font-bold text-blue-400 md:text-white" : "text-[#92adc9]"}
                 `}
                 >

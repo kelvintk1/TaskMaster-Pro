@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import GradientText from "./gradient-text";
 import Notification from "./notification";
 import ProfileDropdown from "./profileDropdown";
+import MobileMenu from "./mobileMenu";
 import { useTasks } from "../context/TaskContext";
 
 interface Task {
@@ -197,9 +198,12 @@ export default function Header() {
         </div>
 
         {/* Right: Notifications + Profile */}
-        <div className="flex items-center gap-5 flex-shrink-0">
-          <Notification />
-          <ProfileDropdown />
+        <div className="flex items-center gap-3 md:gap-5 flex-shrink-0">
+          <div className="hidden md:flex items-center gap-5">
+            <Notification />
+            <ProfileDropdown />
+          </div>
+          <MobileMenu />
         </div>
       </div>
     </header>

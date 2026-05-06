@@ -29,7 +29,7 @@ export default function DeleteTask({ onClose, task, onDelete }: Props) {
             <div onClick={onClose}  className="fixed top-0 right-0 left-0 w-screen h-screen flex justify-center items-center py-8 bg-black/90">
                 {/* Modal */}
                 <div onClick={(e) => e.stopPropagation()} >
-                    <GlowCard glowColor='red' size='lg' customSize className='w-[500px] p-6 rounded-xl bg-[#233648] group'>
+                    <GlowCard glowColor='red' size='lg' customSize className='w-[95vw] max-w-[500px] p-6 rounded-xl bg-[#233648] group'>
                         {/* header */}
                         <div className='w-full flex gap-6 justify-between items-center border-b-1 border-blue-700 rounded-2xl px-4 py-2'>
                             <span className='text-2xl font-bold flex items-center justify-start gap-2'>
