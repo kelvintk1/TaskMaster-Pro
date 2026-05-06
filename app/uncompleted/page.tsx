@@ -7,14 +7,31 @@ import { BorderBeam } from '../components/borderBeam';
 import Checkbox from "../components/checkBox";
 import Image from "next/image";
 import CompleteTask from "../components/completeTask";
-import { getTasks } from '@/lib/api';
 import RippleLoader from "../components/ripple-loader";
+import { useTasks } from "../context/TaskContext";
+
+// ─── Simple toast ──────────────────────────────────────────────────────────
+function Toast({ message, type, onDone }: { message: string; type: 'success' | 'error'; onDone: () => void }) {
+    useEffect(() => {
+        const t = setTimeout(onDone, 2800);
+        return () => clearTimeout(t);
+    }, [onDone]);
+
+    return (
+        <div className={`fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg text-white font-semibold text-sm transition-all
+            ${type === 'success' ? 'bg-blue-700' : 'bg-red-600'}`}>
+            <span>{type === 'success' ? '✓' : '✕'}</span>
+            {message}
+        </div>
+    );
+}
 
 export default function TasksPage() {
+  const { tasks: allTasks, loading, error: fetchError, refreshTasks } = useTasks();
   const [tasks, setTasks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
   const [completingTask, setCompletingTask] = useState(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const [stats, setStats] = useState({
     total: 0,
@@ -23,85 +40,72 @@ export default function TasksPage() {
     priority: 0
   });
 
-  const fetchTasks = async () => {
-    try {
-      const data = await getTasks();
-
-      // Only active/uncompleted tasks
-      const active = data.filter((t: any) =>
-        t.completed === false || t.status !== "completed"
-      );
-
-      const tasksWithDates = active.map((task: any) => ({
-        ...task,
-        dateCreated: new Date(task.dateCreated),
-        dueDate: new Date(task.dueDate),
-        reminderDate: task.reminderDate ? new Date(task.reminderDate) : null
-      }));
-
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-
-      // ✅ ONLY OVERDUE TASKS
-      const overdueTasks = tasksWithDates.filter(task => {
-        const due = new Date(task.dueDate);
-        due.setHours(0, 0, 0, 0);
-        return due < now;
-      });
-
-      // ✅ SORT: NEWEST OVERDUE FIRST
-      overdueTasks.sort((a, b) =>
-        new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
-      );
-
-      setTasks(overdueTasks);
-
-      // START OF WEEK
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
-
-      // END OF WEEK
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
-      endOfWeek.setHours(23, 59, 59, 999);
-
-      setStats({
-        total: overdueTasks.length,
-
-        // ✅ overdue tasks within this week
-        weekly: overdueTasks.filter(task => {
-          const due = new Date(task.dueDate);
-          due.setHours(0, 0, 0, 0);
-          return due >= startOfWeek && due <= endOfWeek;
-        }).length,
-
-        overdue: overdueTasks.length,
-        priority: overdueTasks.filter(t => t.priority).length
-      });
-
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
   };
 
-  // Listen for task completion events from other tabs/windows
-  useEffect(() => {
-    const handleTaskUpdate = (event: StorageEvent) => {
-      if (event.key === 'taskCompleted' || event.key === 'taskUndone') {
-        fetchTasks(); // Refresh uncompleted tasks
-      }
-    };
-    
-    window.addEventListener('storage', handleTaskUpdate);
-    return () => window.removeEventListener('storage', handleTaskUpdate);
-  }, []);
+  const dispatchUpdate = (key: string) => {
+    localStorage.setItem(key, Date.now().toString());
+    localStorage.removeItem(key);
+    refreshTasks();
+  };
 
   useEffect(() => {
-    fetchTasks();
-  }, []);
+    if (!allTasks) return;
+
+    // Only active/uncompleted tasks
+    const active = allTasks.filter((t: any) =>
+      t.completed === false || t.status !== "completed"
+    );
+
+    const tasksWithDates = active.map((task: any) => ({
+      ...task,
+      dateCreated: new Date(task.dateCreated),
+      dueDate: new Date(task.dueDate),
+      reminderDate: task.reminderDate ? new Date(task.reminderDate) : null
+    }));
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    // ✅ ONLY OVERDUE TASKS
+    const overdueTasks = tasksWithDates.filter(task => {
+      const due = new Date(task.dueDate);
+      due.setHours(0, 0, 0, 0);
+      return due < now;
+    });
+
+    // ✅ SORT: NEWEST OVERDUE FIRST
+    overdueTasks.sort((a, b) =>
+      new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
+    );
+
+    setTasks(overdueTasks);
+
+    // START OF WEEK
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    // END OF WEEK
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    setStats({
+      total: overdueTasks.length,
+
+      // ✅ overdue tasks within this week
+      weekly: overdueTasks.filter(task => {
+        const due = new Date(task.dueDate);
+        due.setHours(0, 0, 0, 0);
+        return due >= startOfWeek && due <= endOfWeek;
+      }).length,
+
+      overdue: overdueTasks.length,
+      priority: overdueTasks.filter(t => t.priority).length
+    });
+  }, [allTasks]);
 
   // ✅ SIMPLE SORT (NEWEST OVERDUE FIRST)
   const sortTasks = (tasks: any[]) => {
@@ -183,21 +187,24 @@ export default function TasksPage() {
 
       if (!response.ok) throw new Error('Failed to complete task');
       
-      // Dispatch event to notify other components/pages
-      localStorage.setItem('taskCompleted', Date.now().toString());
-      localStorage.removeItem('taskCompleted');
-      
-      // Refresh the current page
-      await fetchTasks();
+      showToast('Task marked as completed! 🎉');
+      dispatchUpdate('taskCompleted');
       
     } catch (error) {
       console.error('Error completing task:', error);
-      alert('Failed to complete task');
+      showToast('Failed to complete task', 'error');
     }
   };
 
   return (
     <div className="p-2">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onDone={() => setToast(null)}
+        />
+      )}
 
       {/* HEADER */}
       <div className="flex items-center justify-between">
@@ -280,56 +287,98 @@ export default function TasksPage() {
 
               {/* TASKS */}
               {group.tasks.map(task => (
-                <div key={task._id}
-                  className="relative grid grid-cols-[1fr_auto_auto_auto] gap-4 bg-[#233648] rounded-xl p-4 px-6"
+                <div 
+                  key={task._id}
+                  id={`task-${task._id || task.id}`}
+                  className="relative flex flex-col md:grid md:grid-cols-[1fr_auto_auto] gap-4 bg-[#152232] border border-[#233648] hover:border-red-600/30 rounded-2xl p-4 md:p-6 transition-all duration-300 group scroll-mt-24 target:ring-2 target:ring-red-500 target:shadow-[0_0_20px_rgba(239,68,68,0.4)]"
                 >
-                  <BorderBeam />
+                  <BorderBeam 
+                      colorFrom="#EF4444" 
+                      colorTo="#EF4444"
+                      size={50}
+                      duration={6}
+                      borderThickness={2}
+                      glowIntensity={3}
+                  />
 
                   {task.priority && (
                     <Image
                       src="/star.gif"
-                      width={40}
-                      height={40}
+                      width={32}
+                      height={32}
                       alt=""
-                      className="absolute -top-4 -left-3"
+                      className="absolute -top-3 -left-3 rotate-12 z-10"
                     />
                   )}
 
-                  <div className="flex gap-3 items-center">
-                    <Checkbox
-                      checked={false}
-                      onChange={() => {
-                        setCompletingTask(task);
-                        setIsCompleteModalOpen(true);
-                      }}
-                    />
-                    <div>
-                      <p className="text-xl font-bold">{task.title}</p>
-                      <p className="text-sm text-[#92adc9]">
+                  <div className="flex gap-4 items-start">
+                    <div className="mt-1">
+                        <Checkbox
+                        checked={false}
+                        onChange={() => {
+                            setCompletingTask(task);
+                            setIsCompleteModalOpen(true);
+                        }}
+                        />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-lg md:text-xl font-bold text-white group-hover:text-red-400 transition-colors leading-tight truncate">
+                        {task.title}
+                      </p>
+                      <p className="text-sm text-[#92adc9] mt-1 line-clamp-1">
                         {task.description || "No description"}
                       </p>
+                      
+                      {/* Mobile-only status tags */}
+                      <div className="flex flex-wrap gap-3 mt-3 md:hidden">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20">
+                          <span className="text-[10px] font-bold text-red-500 uppercase">Overdue</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+                          <Image src="/calendar.png" alt="" width={12} height={12} />
+                          <span className="text-[10px] font-semibold text-blue-400">
+                            {task.dueDate.toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-center text-sm text-[#92adc9]">
-                    <p>Created {task.dateCreated.toLocaleDateString()}</p>
-                    <p>Due {task.dueDate.toLocaleDateString()}</p>
-                    <p>@ {task.dueDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
+                  {/* Desktop Dates side */}
+                  <div className="hidden md:flex flex-col items-center justify-center px-6 border-x border-[#233648]">
+                    <div className="flex items-center gap-1.5 mb-1 opacity-60">
+                        <Image src="/calendar.png" alt="" width={14} height={14} />
+                        <span className="text-[10px] font-medium text-[#92adc9]">
+                            Created {task.dateCreated.toLocaleDateString()}
+                        </span>
+                    </div>
+                    <div className="text-center">
+                        <span className="block text-sm font-bold text-red-500">
+                            Due {task.dueDate.toLocaleDateString()}
+                        </span>
+                        <span className="text-[10px] text-red-500/60 font-medium">
+                            @ {task.dueDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                        </span>
+                    </div>
                   </div>
 
-                  <div className="text-sm text-[#c99292] text-center">
-                    Overdue
-                  </div>
-
-                  <div className="text-sm text-[#92adc9] text-center">
-                    {task.reminderDate ? (
-                      <>
-                        <p>Reminds</p>
-                        <p>{task.reminderDate.toLocaleDateString()}</p>
-                      </>
-                    ) : (
-                      <p>No Reminder</p>
-                    )}
+                  <div className="flex items-center justify-between md:justify-end gap-6 mt-2 md:mt-0 pt-3 md:pt-0 border-t md:border-t-0 border-[#233648]">
+                    <div className="flex flex-col items-center">
+                        <p className="text-[10px] font-bold text-[#92adc9] uppercase tracking-wider mb-1">Status</p>
+                        <span className="text-sm font-bold text-red-500 animate-pulse">OVERDUE</span>
+                    </div>
+                    
+                    <div className="flex flex-col items-center min-w-[80px]">
+                        <p className="text-[10px] font-bold text-[#92adc9] uppercase tracking-wider mb-1">Reminder</p>
+                        {task.reminderDate ? (
+                            <div className="flex flex-col items-center">
+                                <span className="text-xs font-bold text-[#92adc9]">{task.reminderDate.toLocaleDateString()}</span>
+                                <span className="text-[10px] text-[#92adc9]/60">Set</span>
+                            </div>
+                        ) : (
+                            <span className="text-xs font-medium text-[#92adc9]/40 italic">None</span>
+                        )}
+                    </div>
                   </div>
 
                 </div>

@@ -8,14 +8,31 @@ import { BorderBeam } from '../components/borderBeam';
 import Checkbox from "../components/checkBox";
 import Image from "next/image";
 import CompleteTask from "../components/completeTask";
-import { getTasks } from '@/lib/api';
 import RippleLoader from "../components/ripple-loader";
+import { useTasks } from "../context/TaskContext";
+
+// ─── Simple toast ──────────────────────────────────────────────────────────
+function Toast({ message, type, onDone }: { message: string; type: 'success' | 'error'; onDone: () => void }) {
+    useEffect(() => {
+        const t = setTimeout(onDone, 2800);
+        return () => clearTimeout(t);
+    }, [onDone]);
+
+    return (
+        <div className={`fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg text-white font-semibold text-sm transition-all
+            ${type === 'success' ? 'bg-blue-700' : 'bg-red-600'}`}>
+            <span>{type === 'success' ? '✓' : '✕'}</span>
+            {message}
+        </div>
+    );
+}
 
 export default function CompletedPage() {
+  const { tasks: allTasksData, loading, error: fetchError, refreshTasks } = useTasks();
   const [completedTasks, setCompletedTasks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isUndoModalOpen, setIsUndoModalOpen] = useState(false);
   const [undoingTask, setUndoingTask] = useState(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     weekly: 0,
@@ -24,86 +41,73 @@ export default function CompletedPage() {
   });
   const [monthlyTotalTasks, setMonthlyTotalTasks] = useState(0);
 
-  const fetchCompletedTasks = async () => {
-    try {
-      const tasksData = await getTasks();
-      
-      const completed = tasksData.filter((task: any) => 
-        task.completed === true || task.status === 'completed'
-      );
-      
-      const tasksWithDates = completed.map((task: any) => ({
-        ...task,
-        dateCreated: task.dateCreated ? new Date(task.dateCreated) : new Date(),
-        dueDate: task.dueDate ? new Date(task.dueDate) : new Date(),
-        reminderDate: task.reminderDate ? new Date(task.reminderDate) : null,
-        completedAt: task.completedAt ? new Date(task.completedAt) : new Date()
-      }));
-
-      // ✅ SORT: NEWEST COMPLETED FIRST
-      tasksWithDates.sort((a, b) =>
-        new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
-      );
-      
-      setCompletedTasks(tasksWithDates);
-      
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
-      
-      const weeklyCompleted = tasksWithDates.filter(task => {
-        const completedDate = new Date(task.completedAt);
-        return completedDate >= startOfWeek;
-      }).length;
-      
-      const monthlyCompleted = tasksWithDates.filter(task => {
-        const completedDate = new Date(task.completedAt);
-        return completedDate.getMonth() === currentMonth && 
-               completedDate.getFullYear() === currentYear;
-      }).length;
-      
-      const priorityCompleted = tasksWithDates.filter(task => task.priority === true).length;
-      
-      const totalTasksThisMonth = tasksData.filter((task: any) => {
-        const createdDate = task.dateCreated ? new Date(task.dateCreated) : new Date();
-        return createdDate.getMonth() === currentMonth && 
-               createdDate.getFullYear() === currentYear;
-      }).length;
-      
-      setMonthlyTotalTasks(totalTasksThisMonth);
-      
-      setStats({
-        total: tasksWithDates.length,
-        weekly: weeklyCompleted,
-        priority: priorityCompleted,
-        monthly: monthlyCompleted
-      });
-      
-    } catch (error) {
-      console.error("Error fetching completed tasks:", error);
-    } finally {
-      setLoading(false);
-    }
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
   };
 
-  // Listen for task completion/undo events from other tabs/windows
-  useEffect(() => {
-    const handleTaskUpdate = (event: StorageEvent) => {
-      if (event.key === 'taskCompleted' || event.key === 'taskUndone') {
-        fetchCompletedTasks(); // Refresh completed tasks
-      }
-    };
-    
-    window.addEventListener('storage', handleTaskUpdate);
-    return () => window.removeEventListener('storage', handleTaskUpdate);
-  }, []);
+  const dispatchUpdate = (key: string) => {
+    localStorage.setItem(key, Date.now().toString());
+    localStorage.removeItem(key);
+    refreshTasks();
+  };
 
   useEffect(() => {
-    fetchCompletedTasks();
-  }, []);
+    if (!allTasksData) return;
+    
+    const completed = allTasksData.filter((task: any) => 
+      task.completed === true || task.status === 'completed'
+    );
+    
+    const tasksWithDates = completed.map((task: any) => ({
+      ...task,
+      dateCreated: task.dateCreated ? new Date(task.dateCreated) : new Date(),
+      dueDate: task.dueDate ? new Date(task.dueDate) : new Date(),
+      reminderDate: task.reminderDate ? new Date(task.reminderDate) : null,
+      completedAt: task.completedAt ? new Date(task.completedAt) : new Date()
+    }));
+
+    // ✅ SORT: NEWEST COMPLETED FIRST
+    tasksWithDates.sort((a, b) =>
+      new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+    );
+    
+    setCompletedTasks(tasksWithDates);
+    
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    const weeklyCompleted = tasksWithDates.filter(task => {
+      const completedDate = new Date(task.completedAt);
+      return completedDate >= startOfWeek;
+    }).length;
+    
+    const monthlyCompleted = tasksWithDates.filter(task => {
+      const completedDate = new Date(task.completedAt);
+      return completedDate.getMonth() === currentMonth && 
+             completedDate.getFullYear() === currentYear;
+    }).length;
+    
+    const priorityCompleted = tasksWithDates.filter(task => task.priority === true).length;
+    
+    const totalTasksThisMonth = allTasksData.filter((task: any) => {
+      const createdDate = task.dateCreated ? new Date(task.dateCreated) : new Date();
+      return createdDate.getMonth() === currentMonth && 
+             createdDate.getFullYear() === currentYear;
+    }).length;
+    
+    setMonthlyTotalTasks(totalTasksThisMonth);
+    
+    setStats({
+      total: tasksWithDates.length,
+      weekly: weeklyCompleted,
+      priority: priorityCompleted,
+      monthly: monthlyCompleted
+    });
+  }, [allTasksData]);
 
   const handleUndoTask = async (taskId: string) => {
     try {
@@ -125,17 +129,12 @@ export default function CompletedPage() {
 
       if (!response.ok) throw new Error('Failed to undo task');
 
-      setCompletedTasks(prev => prev.filter(task => (task._id || task.id) !== taskId));
-      
-      // Dispatch event to notify other components/pages
-      localStorage.setItem('taskUndone', Date.now().toString());
-      localStorage.removeItem('taskUndone');
-      
-      alert('Task moved back to active tasks!');
+      showToast('Task moved back to active tasks!');
+      dispatchUpdate('taskUndone');
       
     } catch (error) {
       console.error('Error undoing task:', error);
-      alert('Failed to undo task');
+      showToast('Failed to undo task', 'error');
     }
   };
 
@@ -337,7 +336,11 @@ export default function CompletedPage() {
               
               {/* Completed tasks for this date */}
               {(tasks || []).map(task => (
-                <div key={task._id} className="relative grid grid-cols-[1fr_auto_auto_auto] gap-4 bg-[#233648] rounded-xl p-4 px-6">
+                <div 
+                  key={task._id} 
+                  id={`task-${task._id || task.id}`}
+                  className="relative flex flex-col md:grid md:grid-cols-[1fr_auto_auto] gap-4 bg-[#152232] border border-[#233648] hover:border-blue-600/30 rounded-2xl p-4 md:p-6 transition-all duration-300 group scroll-mt-24 target:ring-2 target:ring-blue-500 target:shadow-[0_0_20px_rgba(37,99,235,0.4)]"
+                >
                   <BorderBeam 
                       colorFrom="#2563EB" 
                       colorTo="#2563EB"
@@ -347,20 +350,19 @@ export default function CompletedPage() {
                       glowIntensity={3}
                   />
                   
-                  {/* Priority Star - Show only if completed task was prioritized */}
                   {task.priority && (
                       <Image 
                           src="/star.gif" 
                           alt="priority" 
-                          width={40} 
-                          height={40} 
-                          className="absolute -top-4 -left-3 rotate-25"
+                          width={32} 
+                          height={32} 
+                          className="absolute -top-3 -left-3 rotate-12 z-10"
                       />
                   )}
                   
-                  {/* left side */} 
-                  <div className="flex gap-3 items-center">
-                      <div className="flex-shrink-0">
+                  {/* Info side */} 
+                  <div className="flex gap-4 items-start">
+                      <div className="mt-1">
                           <Checkbox 
                             checked={true}
                             onChange={() => {
@@ -369,74 +371,61 @@ export default function CompletedPage() {
                             }}
                           />
                       </div>
-                      <div>
-                          {/* Completed task title */}
-                          <p className="text-xl text-gray-500 font-bold flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                          <p className="text-lg md:text-xl text-gray-500 font-bold group-hover:text-blue-400/70 transition-colors leading-tight line-through truncate">
                               {task.title}
                           </p>
-                          {/* Completed task description */}
-                          <p className="text-sm text-[#92adc9]">{task.description || 'No description'}</p>
+                          <p className="text-sm text-[#92adc9]/60 mt-1 line-clamp-1">{task.description || 'No description'}</p>
+                          
+                          {/* Mobile-only completion stats */}
+                          <div className="flex flex-wrap gap-3 mt-3 md:hidden">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+                              <Image src="/stopwatch.png" alt="" width={12} height={12} />
+                              <span className="text-[10px] font-semibold text-blue-400">
+                                {Math.ceil((new Date(task.completedAt).getTime() - new Date(task.dateCreated).getTime()) / (1000 * 60 * 60 * 24))}d effort
+                              </span>
+                            </div>
+                          </div>
                       </div>
                   </div>
                   
-                  {/* middle side */}
-                  <div className="flex flex-col items-center">
-                      {/* Date created */}
-                      <div className="flex items-center gap-1">
-                          <span>
-                              <Image src="/calendar.png" alt="calendar icon" width={18} height={18} />
-                          </span>
-                          <span className="text-sm text-[#92adc9]">
-                              Created {task.dateCreated instanceof Date ? task.dateCreated.toLocaleDateString() : new Date(task.dateCreated).toLocaleDateString()}
+                  {/* Dates side (Desktop) */}
+                  <div className="hidden md:flex flex-col items-center justify-center px-6 border-x border-[#233648]">
+                      <div className="flex items-center gap-1.5 mb-1 opacity-60">
+                          <Image src="/calendar.png" alt="" width={14} height={14} />
+                          <span className="text-[10px] font-medium text-[#92adc9]">
+                              Created {new Date(task.dateCreated).toLocaleDateString()}
                           </span>
                       </div>
-                      {/* Due date */}
+                      <div className="text-center">
+                          <span className="block text-xs font-bold text-[#92adc9]">
+                              Due {new Date(task.dueDate).toLocaleDateString()}
+                          </span>
+                          <span className="text-[10px] text-[#92adc9]/60">
+                              @ {new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </span>
+                      </div>
+                  </div>
+                  
+                  {/* Completion side (Responsive) */}
+                  <div className="flex items-center justify-between md:justify-end gap-6 mt-2 md:mt-0 pt-3 md:pt-0 border-t md:border-t-0 border-[#233648]">
                       <div className="flex flex-col items-center">
-                          <span className="text-sm text-[#92adc9]">
-                              Due {task.dueDate instanceof Date ? task.dueDate.toLocaleDateString() : new Date(task.dueDate).toLocaleDateString()}
-                          </span>
-                          <span className="text-sm text-[#92adc9]">
-                              @ {task.dueDate instanceof Date ? task.dueDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          <p className="text-[10px] font-bold text-[#92adc9] uppercase tracking-wider mb-1">Completed At</p>
+                          <div className="flex flex-col items-center">
+                            <span className="text-sm font-bold text-blue-400">
+                              {new Date(task.completedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </span>
+                            <span className="text-[10px] text-blue-400/60">
+                              {new Date(task.completedAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                      </div>
+                      <div className="hidden md:flex flex-col items-center">
+                          <p className="text-[10px] font-bold text-[#92adc9] uppercase tracking-wider mb-1">Duration</p>
+                          <span className="text-sm font-bold text-blue-400">
+                            {Math.ceil((new Date(task.completedAt).getTime() - new Date(task.dateCreated).getTime()) / (1000 * 60 * 60 * 24))} days
                           </span>
                       </div>
-                  </div>
-                  
-                  {/* right side */}
-                  <div className="flex flex-col items-center">
-                      {/* Date Completed */}
-                      <div className="flex flex-col justify-center items-center">
-                          <span>
-                              <Image src="/stopwatch.png" alt="calendar icon" width={20} height={20} />
-                          </span>
-                          <span className="text-center text-sm text-[#c99292]">
-                            Completed {task.completedAt instanceof Date ? task.completedAt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : new Date(task.completedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                          </span>
-                      </div>
-                      {/* Duration */}
-                      <div className="flex gap-2 items-center">
-                          <span className="text-sm text-center text-[#c99292] pl-6">
-                              Duration: {Math.ceil((new Date(task.completedAt).getTime() - new Date(task.dateCreated).getTime()) / (1000 * 60 * 60 * 24))} days
-                          </span>
-                      </div>
-                  </div>
-                  {/* last side - Reminder status */}
-                  <div className="text-sm text-[#92adc9]">
-                    {task.remind && task.reminderDate ? (
-                      <span className="flex flex-col justify-center items-center">
-                        <span>
-                          <Image src="/remind1.png" alt="reminder icon" width={18} height={18} />
-                        </span>
-                        <p>Reminded {new Date(task.reminderDate).toLocaleDateString()}</p>
-                        <p>@ {task.reminderTime || 'No time'}</p>
-                      </span>
-                    ) : (
-                      <span className="flex flex-col items-center justify-center gap-2">
-                        <span>
-                          <Image src="/remind.png" alt="reminder icon" width={18} height={18} />
-                        </span>
-                        <p>Not Reminded</p>
-                      </span>
-                    )}
                   </div>
                 </div>
               ))}
@@ -456,6 +445,13 @@ export default function CompletedPage() {
           action="undo"
         />
       }
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onDone={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

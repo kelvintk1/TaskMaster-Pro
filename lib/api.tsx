@@ -21,9 +21,7 @@ export async function createTask(task: any) {
 
   if (!res.ok) {
     throw new Error("Failed to create task");
-  } else if (res.status === 201) {
-    alert("Task created successfully!");
-    }
+  }
 
   return res.json();
 };
@@ -38,8 +36,6 @@ export async function updateTask(taskId: string, updatedData: any) {
   });
   if (!res.ok) {
     throw new Error("Failed to update task");
-  } else if (res.status === 200) {
-    alert("Task updated successfully!");
   }
   return res.json();
 }
@@ -50,7 +46,6 @@ export async function deleteTask(taskId: string) {
   });
   if (!res.ok) {
     throw new Error("Failed to delete task");
-  } else if (res.status === 200) {
-    alert("Task deleted successfully!");
-  } return res.json();
+  }
+  return res.json();
 };

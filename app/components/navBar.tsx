@@ -12,7 +12,7 @@ const navItems = [
     icon: "/taskWhite.png",
     activeIcon: "/task-B.png",
     href: "/",
-  }, 
+  },
   {
     id: "completed",
     label: "Completed",
@@ -26,6 +26,13 @@ const navItems = [
     icon: "/uncompleted-W.png",
     activeIcon: "/uncompleted-B.png",
     href: "/uncompleted",
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    icon: "/settingsWhite.png",
+    activeIcon: "/settingsA.png",
+    href: "/settings",
   },
 ];
 
@@ -43,15 +50,15 @@ export default function NavBar() {
 
   return (
     <aside
-      className={`h-full shadow-xl shadow-gray-400 transition-all duration-300
-        ${expanded ? "w-54" : "w-20"}
+      className={`fixed bottom-0 left-0 right-0 z-[1000] bg-[#101922] border-t border-[#1e3246] md:relative md:border-t-0 md:h-full md:shadow-xl md:shadow-black/40 transition-all duration-300
+        ${expanded ? "md:w-56" : "md:w-20"}
       `}
     >
-      <div className="flex flex-col py-6">
+      <div className="flex flex-row md:flex-col justify-around md:justify-start md:py-6 h-full">
         {/* Expand / Collapse */}
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-6 px-6 py-4 cursor-pointer hover:scale-110 transition-transform"
+          className="hidden md:flex items-center gap-6 px-6 py-4 cursor-pointer hover:scale-110 transition-transform"
         >
           <Image
             src="/expand.png"
@@ -72,28 +79,32 @@ export default function NavBar() {
             <Link
               key={item.id}
               href={item.href}
-              className={`flex items-center gap-6 px-6 py-4 cursor-pointer group
-                transition-all duration-200
-                ${isActive ? "bg-[#233648] rounded-3xl border-r-6 border-blue-800 " : ""}
+              className={`flex flex-col md:flex-row items-center gap-1 md:gap-6 px-4 py-3 md:px-0 md:py-4 cursor-pointer group
+                transition-all duration-300 flex-1 md:flex-initial justify-center
+                ${isActive ? "bg-[#233648]/40 md:bg-[#233648] md:border-r-4 border-blue-600 rounded-2xl " : ""}
+                ${expanded ? "md:px-6" : "md:px-0"}
               `}
             >
               {/* Icon */}
-              <Image
-                src={isActive ? item.activeIcon : item.icon}
-                alt={item.label}
-                width={25}
-                height={25}
-                className={` ${isActive ? "scale-130 transition-transform duration-300" : ""}`}
-              />
+              <div className={`relative flex items-center justify-center transition-all duration-300 flex-shrink-0 ${!expanded ? "md:w-20" : ""}`}>
+                <Image
+                  src={isActive ? item.activeIcon : item.icon}
+                  alt={item.label}
+                  width={32}
+                  height={32}
+                  className={`transition-all duration-300 ${isActive ? "scale-110" : "opacity-60 group-hover:opacity-100 group-hover:scale-110"}`}
+                />
+              </div>
 
               {/* Text */}
               <div
-                className={`overflow-hidden group-hover:scale-115 transition-all duration-300
-                ${expanded ? "max-w-[200px]" : "max-w-0"}`}
+                className={`overflow-hidden transition-all duration-500
+                ${expanded ? "max-w-[200px] ml-0" : "md:max-w-0 md:ml-0"}`}
               >
                 <span
-                  className={`block whitespace-nowrap transition-all duration-200 ${isActive ? "font-semibold" : ""}
-                  ${expanded ? "opacity-100 translate-x-0 delay-150" : "opacity-0 -translate-x-4"}`}
+                  className={`block text-[10px] md:text-[14px] whitespace-nowrap transition-all duration-300 
+                  ${isActive ? "font-bold text-blue-400 md:text-white" : "text-[#92adc9]"}
+                  ${expanded ? "opacity-100 translate-x-0" : "md:opacity-0 md:-translate-x-10"}`}
                 >
                   {item.label}
                 </span>
