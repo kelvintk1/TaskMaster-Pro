@@ -401,9 +401,11 @@ export default function CompletedPage() {
                           <span className="block text-xs font-bold text-[#92adc9]">
                               Due {new Date(task.dueDate).toLocaleDateString()}
                           </span>
-                          <span className="text-[10px] text-[#92adc9]/60">
-                              @ {new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                          </span>
+                          {task.dueTime && (
+                              <span className="text-[10px] text-[#92adc9]/60">
+                                  @ {(() => { const [h, m] = task.dueTime.split(':'); const d = new Date(); d.setHours(+h, +m); return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); })()}
+                              </span>
+                          )}
                       </div>
                   </div>
                   

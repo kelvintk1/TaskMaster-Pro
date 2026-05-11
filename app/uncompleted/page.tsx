@@ -362,9 +362,11 @@ export default function TasksPage() {
                         <span className="block text-sm font-bold text-red-500">
                             Due {task.dueDate.toLocaleDateString()}
                         </span>
-                        <span className="text-[10px] text-red-500/60 font-medium">
-                            @ {task.dueDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                        </span>
+                        {task.dueTime && (
+                            <span className="text-[10px] text-red-500/60 font-medium">
+                                @ {(() => { const [h, m] = task.dueTime.split(':'); const d = new Date(); d.setHours(+h, +m); return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); })()}
+                            </span>
+                        )}
                     </div>
                   </div>
 

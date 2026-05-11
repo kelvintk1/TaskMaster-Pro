@@ -206,6 +206,10 @@ export default function HomePage() {
                 filtered = activeTasks.filter(task => task.priority === true);
                 filtered.sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
                 break;
+            case "timetable":
+                filtered = tasks.filter(task => task.source === "timetable");
+                filtered.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+                break;
             case "all":
             default:
                 filtered = activeTasks;
@@ -233,6 +237,7 @@ export default function HomePage() {
                         {activeTab === 'upcoming' && `You have ${filteredTasks.length} tasks scheduled for this week.`}
                         {activeTab === 'priority' && `You have ${filteredTasks.length} priority tasks.`}
                         {activeTab === 'all' && `You have ${filteredTasks.length} total tasks.`}
+                        {activeTab === 'timetable' && `You have ${filteredTasks.length} lecture & study tasks.`}
                     </span>
                 </div>
                 {/* Add button */}
@@ -305,9 +310,14 @@ export default function HomePage() {
                                     />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-lg md:text-xl font-bold text-white group-hover:text-blue-400 transition-colors leading-tight truncate">
-                                        {task.title}
-                                    </p>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="text-lg md:text-xl font-bold text-white group-hover:text-blue-400 transition-colors leading-tight truncate">
+                                            {task.title}
+                                        </p>
+                                        {task.source === 'timetable' && task.courseCode && (
+                                            <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-bold bg-purple-600/20 border border-purple-500/30 text-purple-400">📚 {task.courseCode}</span>
+                                        )}
+                                    </div>
                                     <p className="text-sm text-[#92adc9] mt-1 line-clamp-2 md:line-clamp-none">
                                         {task.description}
                                     </p>
@@ -342,9 +352,11 @@ export default function HomePage() {
                                     <span className="text-sm font-bold text-red-400">
                                         Due {task.dueDate && (task.dueDate instanceof Date ? task.dueDate.toLocaleDateString() : new Date(task.dueDate).toLocaleDateString())}
                                     </span>
-                                    <span className="text-[10px] font-medium text-red-400/70">
-                                        @ {task.dueDate && (task.dueDate instanceof Date ? task.dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}
-                                    </span>
+                                    {task.dueTime && (
+                                        <span className="text-[10px] font-medium text-red-400/70">
+                                            @ {(() => { const [h, m] = task.dueTime.split(':'); const d = new Date(); d.setHours(+h, +m); return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); })()}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 

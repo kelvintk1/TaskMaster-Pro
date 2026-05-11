@@ -49,7 +49,7 @@ export default function SettingsPage() {
   };
 
   const sections = [
-    { id: "profile", label: "Profile", icon: "/profile.png" },
+    { id: "profile", label: "Profile", icon: "/profileIcon.png" },
     { id: "preferences", label: "Preferences", icon: "/settingsWhite.png" },
   ] as const;
 
@@ -74,7 +74,7 @@ export default function SettingsPage() {
                   : "text-[#92adc9] hover:bg-[#1a2d3e] hover:text-white"
                 }`}
             >
-              <Image src={s.icon} alt={s.label} width={16} height={16} className={activeSection === s.id ? "" : "opacity-60"} />
+              <Image src={s.icon} alt={s.label} width={20} height={20} className={activeSection === s.id ? "" : "opacity-60"} />
               {s.label}
             </button>
           ))}
@@ -103,7 +103,7 @@ export default function SettingsPage() {
                       className="absolute -bottom-1 -right-1 bg-blue-600 hover:bg-blue-700 rounded-full p-2 transition-all hover:scale-110 cursor-pointer flex items-center justify-center shadow-lg shadow-black/40"
                       title="Change avatar"
                     >
-                      <Image src="/editIcon.png" alt="edit" width={14} height={14} />
+                      <Image src="/editProfile.png" alt="edit" width={14} height={14} />
                     </button>
                   </div>
                   <div className="text-center sm:text-left">

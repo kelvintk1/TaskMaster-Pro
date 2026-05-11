@@ -51,7 +51,17 @@ const taskSchema = new Schema(
     completedAt: {
       type: Date,
       default: null,
-    }
+    },
+    source: {
+      type: String,
+      enum: ["manual", "timetable"],
+      default: "manual",
+    },
+    courseCode: {
+      type: String,
+      required: false,
+      default: "",
+    },
   },
   {
     timestamps: {

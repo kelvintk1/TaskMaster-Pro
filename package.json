@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@next/swc-win32-x64-msvc": "^16.2.6",
     "bcrypt": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -17,12 +19,13 @@
     "jsonwebtoken": "^9.0.3",
     "lightswind": "^3.1.21",
     "lucide-react": "^0.577.0",
+    "mammoth": "^1.12.0",
     "mongodb": "^7.1.0",
     "mongoose": "^9.2.1",
-    "next": "^16.1.6",
+    "next": "^15.1.0",
     "radix-ui": "^1.4.3",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "shadcn": "^4.0.8",
     "styled-components": "^6.3.12",
     "tailwind-merge": "^3.5.0",
@@ -35,8 +38,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^10.0.1",
-    "eslint-config-next": "^0.2.4",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.1.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
