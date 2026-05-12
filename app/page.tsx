@@ -1,20 +1,17 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Image from 'next/image';
-import Header from './components/header';
-import NavBar from './components/navBar';
 import Tabs from './components/tabs';
 import CreateTask from './components/createTask';
 import EditTask from './components/editTask';
 import { BorderBeam } from './components/borderBeam';
 import GlassToggle from './components/glassToggle';
-import { getTasks } from '@/lib/api';
 import RippleLoader from './components/ripple-loader';
 import DeleteTask from './components/deleteTask';
 import CompleteTask from './components/completeTask';
 import { Pattern } from './components/patterns/p-dropdown-menu-12';
 import Checkbox from "./components/checkBox";
-import { useTasks } from './context/TaskContext';
+import { useTasks, type Task } from './context/TaskContext';
 
 // ─── Simple toast ──────────────────────────────────────────────────────────
 function Toast({ message, type, onDone }: { message: string; type: 'success' | 'error'; onDone: () => void }) {
@@ -34,16 +31,14 @@ function Toast({ message, type, onDone }: { message: string; type: 'success' | '
 
 export default function HomePage() {
     const { tasks: allTasks, loading, error: fetchError, refreshTasks } = useTasks();
-    const [active, setActive] = useState('today');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [editingTask, setEditingTask] = useState(null);
+    const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [deletingTask, setDeletingTask] = useState(null);
+    const [deletingTask, setDeletingTask] = useState<Task | null>(null);
     const [activeTab, setActiveTab] = useState("all");
-    const [filteredTasks, setFilteredTasks] = useState([]);
     const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
-    const [completingTask, setCompletingTask] = useState<any>(null);
+    const [completingTask, setCompletingTask] = useState<Task | null>(null);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
     const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -146,24 +141,10 @@ export default function HomePage() {
         }
     };
 
-    useEffect(() => {
-        // Only active tasks on home page
-        const activeOnly = allTasks.filter(t => !t.completed);
-        const filtered = filterTasksByTab(activeOnly, activeTab);
-        setFilteredTasks(filtered);
-    }, [activeTab, allTasks]);
-
-    const getTimeDifference = (dueDate: Date) => {
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        const due = new Date(dueDate);
-        due.setHours(0, 0, 0, 0);
-        return due.getTime() - now.getTime();
-    };
-
-    const filterTasksByTab = (tasks: any[], tab: string) => {
+    const filterTasksByTab = useCallback((tasks: any[], tab: string) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        const todayTime = today.getTime();
         const tomorrow = new Date(today);
         tomorrow.setDate(today.getDate() + 1);
         const endOfWeek = new Date(today);
@@ -177,9 +158,9 @@ export default function HomePage() {
                 const [hours, minutes] = task.dueTime.split(':');
                 due.setHours(parseInt(hours), parseInt(minutes), 0, 0);
             } else {
-                due.setHours(23, 59, 59, 999); // End of day if no time
+                due.setHours(23, 59, 59, 999);
             }
-            return due < new Date();
+            return due.getTime() < Date.now();
         };
 
         const activeTasks = tasks.filter(task => !isOverdue(task));
@@ -190,7 +171,7 @@ export default function HomePage() {
                 filtered = activeTasks.filter(task => {
                     const taskDate = new Date(task.dueDate);
                     taskDate.setHours(0, 0, 0, 0);
-                    return taskDate.getTime() === today.getTime();
+                    return taskDate.getTime() === todayTime;
                 });
                 filtered.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
                 break;
@@ -210,21 +191,18 @@ export default function HomePage() {
                 filtered = tasks.filter(task => task.source === "timetable");
                 filtered.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
                 break;
-            case "all":
             default:
                 filtered = activeTasks;
-                filtered.sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
+                filtered.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
         }
-
         return filtered;
-    };
+    }, []);
 
-    const isDueSoon = (task: any) => {
-        const now = new Date();
-        const due = new Date(task.dueDate);
-        const diff = (due.getTime() - now.getTime()) / (1000 * 60 * 60);
-        return diff <= 24 && diff >= 0;
-    };
+    const filteredTasks = useMemo(() => {
+        const activeOnly = allTasks.filter(t => !t.completed);
+        return filterTasksByTab(activeOnly, activeTab);
+    }, [allTasks, activeTab, filterTasksByTab]);
+
 
     return (
         <div className="flex flex-col">
@@ -243,7 +221,7 @@ export default function HomePage() {
                 {/* Add button */}
                 <div onClick={() => setIsModalOpen(true)} className='w-26 h-10 px-2 mt-2 flex justify-center items-center bg-white rounded-xl cursor-pointer hover:shadow-[#92adc9] hover:shadow-md active:shadow-[#92adc9] active:shadow-md'>
                     <span>
-                        <Image src='/add.gif' alt='add gif' width={80} height={70} priority style={{ width: 'auto', height: 'auto' }} />
+                        <Image src='/add.gif' alt='' width={80} height={70} priority unoptimized style={{ width: 'auto', height: 'auto' }} />
                     </span>
                     <span className='text-black font-semibold'>Task</span>
                 </div>
@@ -254,6 +232,11 @@ export default function HomePage() {
             </div>
 
             <div className='flex flex-col gap-4 p-6 overflow-y-auto no-scrollbar h-[calc(100vh-250px)]'>
+                {fetchError && !loading && (
+                    <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                        Tasks could not be loaded. Check your connection and try refreshing the page.
+                    </div>
+                )}
                 {loading ? (
                     <div className="w-full h-full flex flex-col gap-2 items-center justify-center">
                         <RippleLoader />
@@ -267,7 +250,7 @@ export default function HomePage() {
                         </span>
                         <div onClick={() => setIsModalOpen(true)} className='w-56 h-14 px-2 mt-2 flex justify-center items-center bg-white rounded-xl cursor-pointer hover:shadow-[#92adc9] hover:shadow-md active:shadow-[#92adc9] active:shadow-md'>
                             <span>
-                                <Image src='/add.gif' alt='add gif' width={80} height={70} priority />
+                                <Image src='/add.gif' alt='' width={80} height={70} priority unoptimized />
                             </span>
                             <span className='text-black font-semibold'>Task</span>
                         </div>
@@ -291,9 +274,10 @@ export default function HomePage() {
                             {task.priority && (
                                 <Image
                                     src="/star.gif"
-                                    alt="priority"
+                                    alt=""
                                     width={32}
                                     height={32}
+                                    unoptimized
                                     className="absolute -top-3 -left-3 rotate-12 z-10"
                                 />
                             )}
@@ -323,7 +307,7 @@ export default function HomePage() {
                                     </p>
 
                                     {/* Mobile-only dates */}
-                                    <div className="flex flex-wrap gap-3 mt-3 md:hidden">
+                                    <div className="flex gap-3 mt-3 md:hidden">
                                         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
                                             <Image src="/calendar.png" alt="" width={12} height={12} />
                                             <span className="text-[10px] font-semibold text-blue-400">
@@ -384,7 +368,7 @@ export default function HomePage() {
                                             setEditingTask(task);
                                             setIsEditModalOpen(true);
                                         }}
-                                        onDelete={(taskId) => {
+                                        onDelete={() => {
                                             setDeletingTask(task);
                                             setIsDeleteModalOpen(true);
                                         }}

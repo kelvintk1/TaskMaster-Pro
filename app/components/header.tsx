@@ -80,8 +80,8 @@ export default function Header() {
   };
 
   return (
-    <header className="w-full h-21 border-b border-[#1e3246] shadow-sm shadow-black/40 px-4 py-3 bg-[#101922]">
-      <div className="flex items-center justify-between gap-2 md:gap-4">
+    <header className="relative z-50 w-full min-h-[4.25rem] border-b border-[#1e3246] shadow-sm shadow-black/40 px-4 py-3 bg-[#101922]">
+      <div className="flex items-center justify-between gap-2 lg:gap-4">
 
         {/* Logo & Title */}
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -103,7 +103,7 @@ export default function Header() {
         </div>
 
         {/* Search bar */}
-        <div ref={searchRef} className="relative flex-1 max-w-sm md:max-w-md mx-2">
+        <div ref={searchRef} className="relative flex-1 max-w-sm lg:max-w-md mx-2">
           <div className="flex items-center gap-2 border border-[#324d67] w-full py-1.5 px-3 md:px-4 rounded-3xl bg-[#152232] focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600/40 transition-all duration-200">
             <Image
               src="/searchIcon.png"
@@ -198,8 +198,8 @@ export default function Header() {
         </div>
 
         {/* Right: Notifications + Profile */}
-        <div className="flex items-center gap-3 md:gap-5 flex-shrink-0">
-          <div className="hidden md:flex items-center gap-5">
+        <div className="flex items-center gap-3 lg:gap-5 flex-shrink-0">
+          <div className="hidden lg:flex items-center gap-5">
             <Notification />
             <ProfileDropdown />
           </div>

@@ -1,5 +1,11 @@
-export async function getTasks() {
-  const res = await fetch("/api/tasks", {
+export async function getTasks(params: { completed?: boolean } = {}) {
+  const queryParams = new URLSearchParams();
+  if (params.completed !== undefined) {
+    queryParams.append("completed", params.completed.toString());
+  }
+  
+  const url = `/api/tasks${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+  const res = await fetch(url, {
     cache: "no-store",
   });
 

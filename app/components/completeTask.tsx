@@ -4,9 +4,15 @@ import React, { useEffect } from "react";
 import Image from 'next/image';
 import { GlowCard } from "./spotlight-card";
 
+type TaskRef = {
+    _id?: string;
+    id?: string;
+    title?: string;
+};
+
 type Props = {
     onClose: () => void;
-    task: any;
+    task: TaskRef;
     onConfirm: (taskId: string) => void;
     action: 'complete' | 'undo';
 }
@@ -21,7 +27,8 @@ export default function CompleteTask({ onClose, task, onConfirm, action }: Props
     }, [onClose]);
 
     const handleConfirm = () => {
-        onConfirm(task?.id || task?._id);
+        const taskId = task?.id || task?._id;
+        if (taskId) onConfirm(String(taskId));
         onClose();
     };
 
@@ -73,7 +80,9 @@ export default function CompleteTask({ onClose, task, onConfirm, action }: Props
                             <div className="space-y-1 text-gray-300">
                                 <p>{message}</p>
                                 <p className="font-semibold text-white text-lg mt-2">
-                                    "{task?.title}"?
+                                    <span className="text-[#92adc9]">&ldquo;</span>
+                                    {task?.title}
+                                    <span className="text-[#92adc9]">&rdquo;</span>?
                                 </p>
                                 <p className="flex items-center justify-center gap-1 text-sm text-gray-400 mt-3">
                                     {description}

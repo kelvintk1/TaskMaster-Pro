@@ -1,4 +1,4 @@
-import {NextResponse} from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from '@/lib/db';
 import tasks from '@/models/tasks';
 
@@ -18,7 +18,8 @@ export async function PUT(
         await connectDB();
         
         // Remove id from body if it exists to avoid conflicts
-        const { id: bodyId, ...updateData } = body;
+        const { id: discardedBodyId, ...updateData } = body;
+        void discardedBodyId;
         
         // Use returnDocument: 'after' instead of the deprecated new: true
         const updatedTask = await tasks.findByIdAndUpdate(

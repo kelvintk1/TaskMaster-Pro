@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { getTasks as apiGetTasks } from "@/lib/api";
 
-interface Task {
+export interface Task {
   _id?: string;
   id?: string;
   title: string;
@@ -13,6 +13,13 @@ interface Task {
   priority: boolean;
   dateCreated: string | Date;
   completedAt?: string | Date;
+  remind?: boolean;
+  reminderDate?: string | Date;
+  reminderTime?: string;
+  dueTime?: string;
+  source?: string;
+  courseCode?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- API may return extra fields
   [key: string]: any;
 }
 
@@ -30,9 +37,9 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const refreshTasks = useCallback(async () => {
+  const refreshTasks = useCallback(async (filter: { completed?: boolean } = {}) => {
     try {
-      const data = await apiGetTasks();
+      const data = await apiGetTasks(filter);
       setTasks(data);
       setError(false);
     } catch (err) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { BookOpen, Plus, X, Upload, FileText, ChevronRight, ChevronLeft, Check, Loader2, CalendarRange, Clock, MapPin, Pencil, Trash2, BellRing, BellOff } from "lucide-react";
+import { BookOpen, Plus, X, Upload, FileText, ChevronRight, ChevronLeft, Check, Loader2, CalendarRange, Clock, Pencil, Trash2, BellRing, BellOff } from "lucide-react";
 import { useTasks } from "../context/TaskContext";
 
 interface Course { _id: string; name: string; code: string; color: string; }
@@ -143,7 +143,7 @@ export default function TimetablePage() {
   const selectCls = "bg-[#0d1924] border border-[#233648] rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500";
 
   return (
-    <div className="flex flex-col pb-20 md:pb-0">
+    <div className="flex flex-col pb-6 lg:pb-0">
       {/* Header */}
       <div className="flex items-center gap-3 mt-3 mb-6">
         <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center">

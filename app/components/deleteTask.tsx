@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react'; 
-import { useRef, useEffect, useState } from "react";
+import { useEffect } from "react";
 import Image from 'next/image';
 import { GlowCard } from "./spotlight-card";
 
@@ -63,7 +63,9 @@ export default function DeleteTask({ onClose, task, onDelete }: Props) {
                                 <div className="space-y-1 text-gray-300">
                                     <p>Are you sure you want to delete</p>
                                     <p className="font-semibold text-white text-lg">
-                                        "{task?.title}"?
+                                        <span className="text-[#92adc9]">&ldquo;</span>
+                                        {task?.title}
+                                        <span className="text-[#92adc9]">&rdquo;</span>?
                                     </p>
                                     <p className="flex items-center justify-center gap-1 text-sm text-gray-400 mt-3">
                                         <span>This action cannot</span>

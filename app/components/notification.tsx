@@ -40,7 +40,6 @@ export default function Notification() {
       const diffHours = diffMs / (1000 * 60 * 60);
 
       if (dueDay < today) {
-        // Overdue
         built.push({
           id: task._id || task.id,
           title: task.title,
@@ -49,7 +48,6 @@ export default function Notification() {
           time: due.toLocaleDateString(),
         });
       } else if (diffHours <= 24 && diffHours >= 0) {
-        // Due within 24 hours
         const hrs = Math.floor(diffHours);
         const mins = Math.floor((diffHours - hrs) * 60);
         built.push({
@@ -77,7 +75,12 @@ export default function Notification() {
     setAlerts(built);
   }, [tasks]);
 
-  // Close panel when clicking outside
+  useEffect(() => {
+    const handleToggle = () => setOpen(prev => !prev);
+    window.addEventListener("toggle-notifications", handleToggle);
+    return () => window.removeEventListener("toggle-notifications", handleToggle);
+  }, []);
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
@@ -88,17 +91,13 @@ export default function Notification() {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const typeStyles: Record<string, { bg: string; dot: string; icon: string }> = {
-    overdue: { bg: "bg-red-500/10 border-red-500/30", dot: "bg-red-500", icon: "/alert.png" },
-    "due-soon": { bg: "bg-orange-500/10 border-orange-500/30", dot: "bg-orange-400", icon: "/time.png" },
-    reminder: { bg: "bg-blue-500/10 border-blue-500/30", dot: "bg-blue-400", icon: "/notify.png" },
-  };
-
   return (
     <div ref={panelRef} className="relative inline-flex items-center justify-center">
-      {/* Bell Button */}
       <button
-        onClick={() => setOpen(prev => !prev)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(prev => !prev);
+        }}
         className="relative flex items-center justify-center cursor-pointer group"
         aria-label="Notifications"
       >
@@ -116,116 +115,119 @@ export default function Notification() {
         />
       </button>
 
-      {/* Dropdown Panel */}
       {open && (
-        <div className="absolute top-10 right-0 w-80 bg-[#152232] border border-[#233648] rounded-2xl shadow-2xl shadow-black/60 z-[999] overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#233648]">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-white">Notifications</span>
-              {alerts.length > 0 && (
-                <span className="bg-red-500 text-xs font-bold px-2 py-0.5 rounded-full">
-                  {alerts.length}
-                </span>
-              )}
-            </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="text-[#92adc9] hover:text-white text-xs cursor-pointer transition-colors"
-            >
-              Close
-            </button>
-          </div>
+        <>
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1010] lg:hidden animate-in fade-in duration-200"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+            }}
+          />
 
-          {/* Body */}
-          <div className="max-h-[400px] overflow-y-auto no-scrollbar">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-12 gap-3">
-                <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-[#92adc9] text-xs font-medium">Checking tasks...</p>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="lg:absolute fixed lg:top-10 top-1/2 left-1/2 lg:left-auto lg:right-0 -translate-x-1/2 -translate-y-1/2 lg:translate-x-0 lg:translate-y-0 w-[min(calc(100vw-2rem),22rem)] lg:w-80 bg-[#152232] border border-[#233648] rounded-3xl shadow-2xl shadow-black/80 z-[1011] overflow-hidden animate-in zoom-in-95 duration-200"
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#233648]">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-white">Notifications</span>
+                {alerts.length > 0 && (
+                  <span className="bg-red-500 text-xs font-bold px-2 py-0.5 rounded-full">
+                    {alerts.length}
+                  </span>
+                )}
               </div>
-            ) : error ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-3 px-6 text-center">
-                <div className="bg-red-500/10 p-3 rounded-2xl">
-                  <Image src="/notify.png" alt="error" width={32} height={32} className="opacity-80" />
+              <button
+                onClick={() => setOpen(false)}
+                className="text-[#92adc9] hover:text-white text-xs cursor-pointer transition-colors"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="max-h-[400px] overflow-y-auto no-scrollbar">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-[#92adc9] text-xs font-medium">Checking tasks...</p>
                 </div>
-                <div>
-                  <p className="text-white text-sm font-bold">Connection Issue</p>
-                  <p className="text-[#92adc9] text-[11px] mt-1 leading-relaxed">We couldn't reach the server. Please check your network or database whitelist.</p>
+              ) : error ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3 px-6 text-center">
+                  <div className="bg-red-500/10 p-3 rounded-2xl">
+                    <Image src="/notify.png" alt="error" width={32} height={32} className="opacity-80" />
+                  </div>
+                  <div>
+                    <p className="text-white text-sm font-bold">Connection Issue</p>
+                    <p className="text-[#92adc9] text-[11px] mt-1 leading-relaxed">We could not reach the server. Please check your network or database whitelist.</p>
+                  </div>
+                  <button 
+                    onClick={() => refreshTasks()}
+                    className="mt-2 w-full py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-[11px] font-bold rounded-xl transition-all cursor-pointer"
+                  >
+                    Retry Connection
+                  </button>
                 </div>
-                <button 
-                  onClick={() => refreshTasks()}
-                  className="mt-2 w-full py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-[11px] font-bold rounded-xl transition-all cursor-pointer"
-                >
-                  Retry Connection
-                </button>
-              </div>
-            ) : alerts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 gap-4">
-                <div className="bg-[#233648]/30 p-4 rounded-full">
-                  <Image src="/completedWhite.png" alt="all clear" width={40} height={40} className="opacity-20" />
+              ) : alerts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-4">
+                  <div className="bg-[#233648]/30 p-4 rounded-full">
+                    <Image src="/completedWhite.png" alt="all clear" width={40} height={40} className="opacity-20" />
+                  </div>
+                  <p className="text-[#92adc9] text-sm font-medium">You&apos;re all caught up!</p>
                 </div>
-                <p className="text-[#92adc9] text-sm font-medium">You're all caught up!</p>
-              </div>
-            ) : (
-              <div className="flex flex-col p-2 gap-1.5">
-                {alerts.map((alert) => (
-                  <button
-                    key={alert.id}
-                    onClick={() => {
+              ) : (
+                <div className="flex flex-col p-2 gap-1.5">
+                  {alerts.map((alert) => (
+                    <button
+                      key={alert.id}
+                      onClick={() => {
                         const taskId = alert.id.split('-')[0];
                         const targetPath = alert.type === 'overdue' ? '/uncompleted' : '/';
-                        
                         router.push(`${targetPath}#task-${taskId}`);
-                        
-                        // Force scroll even if on same page
                         setTimeout(() => {
-                            const el = document.getElementById(`task-${taskId}`);
-                            if (el) {
-                              el.scrollIntoView({ behavior: "smooth", block: "center" });
-                            }
+                          const el = document.getElementById(`task-${taskId}`);
+                          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
                         }, 300);
-                        
                         setOpen(false);
-                    }}
-                    className="flex items-start gap-3 p-3 rounded-xl hover:bg-[#233648]/60 transition-all text-left cursor-pointer group"
-                  >
-                    <div className={`p-2 rounded-xl flex-shrink-0 ${
-                      alert.type === 'overdue' ? 'bg-red-500/10' : 
-                      alert.type === 'due-soon' ? 'bg-orange-500/10' : 'bg-blue-500/10'
-                    }`}>
-                      <Image 
-                        src={alert.type === 'overdue' ? '/calendar.png' : 
-                             alert.type === 'due-soon' ? '/time.png' : '/remind1.png'} 
-                        alt="type" 
-                        width={20} 
-                        height={20} 
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-[13px] font-bold text-white truncate group-hover:text-blue-400 transition-colors">
-                          {alert.title}
-                        </p>
-                        <span className="text-[10px] font-medium text-[#92adc9] whitespace-nowrap">
-                          {alert.time}
-                        </span>
+                      }}
+                      className="flex items-start gap-3 p-3 rounded-xl hover:bg-[#233648]/60 transition-all text-left cursor-pointer group"
+                    >
+                      <div className={`p-2 rounded-xl flex-shrink-0 ${
+                        alert.type === 'overdue' ? 'bg-red-500/10' : 
+                        alert.type === 'due-soon' ? 'bg-orange-500/10' : 'bg-blue-500/10'
+                      }`}>
+                        <Image 
+                          src={alert.type === 'overdue' ? '/calendar.png' : 
+                               alert.type === 'due-soon' ? '/time.png' : '/remind1.png'} 
+                          alt="type" 
+                          width={20} 
+                          height={20} 
+                        />
                       </div>
-                      <p className="text-[11px] text-[#92adc9] mt-0.5 line-clamp-2">
-                        {alert.message}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[13px] font-bold text-white truncate group-hover:text-blue-400 transition-colors">
+                            {alert.title}
+                          </p>
+                          <span className="text-[10px] font-medium text-[#92adc9] whitespace-nowrap">
+                            {alert.time}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#92adc9] mt-0.5 line-clamp-2">
+                          {alert.message}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          {/* Footer */}
-          <div className="px-4 py-2 border-t border-[#233648] text-center">
-            <p className="text-xs text-[#92adc9]">Updates every minute</p>
+            <div className="px-4 py-2 border-t border-[#233648] text-center">
+              <p className="text-xs text-[#92adc9]">Updates every minute</p>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

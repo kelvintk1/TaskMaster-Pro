@@ -1,56 +1,67 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarRange } from "lucide-react";
-
-const navItems = [
-  { id: "tasks", label: "Tasks", icon: "/taskWhite.png", activeIcon: "/task-B.png", href: "/", lucide: false },
-  { id: "completed", label: "Completed", icon: "/completedWhite.png", activeIcon: "/completed-B.png", href: "/completed", lucide: false },
-  { id: "uncompleted", label: "Uncompleted", icon: "/uncompleted-W.png", activeIcon: "/uncompleted-B.png", href: "/uncompleted", lucide: false },
-  { id: "timetable", label: "Timetable", icon: "", activeIcon: "", href: "/timetable", lucide: true },
-  { id: "settings", label: "Settings", icon: "/settingsWhite.png", activeIcon: "/settingsA.png", href: "/settings", lucide: false },
-];
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { MAIN_NAV_ITEMS, getActiveNavId } from "@/lib/navigation";
 
 export default function NavBar() {
   const [expanded, setExpanded] = useState(true);
   const pathname = usePathname();
-
-  const getActiveId = () => {
-    const current = navItems.find(item => pathname === item.href);
-    return current ? current.id : "tasks";
-  };
-  const active = getActiveId();
+  const active = getActiveNavId(pathname);
 
   return (
-    <aside className={`fixed bottom-0 left-0 right-0 z-[1000] bg-[#101922]/95 backdrop-blur-md border-t border-[#1e3246]/50 md:relative md:border-t-0 md:h-full md:shadow-xl md:shadow-black/40 transition-all duration-300 ${expanded ? "md:w-56" : "md:w-20"}`}>
-      <div className="flex flex-row md:flex-col justify-around md:justify-start md:py-6 h-full">
-
-        {/* Expand / Collapse */}
-        <button onClick={() => setExpanded(!expanded)} className="hidden md:flex items-center gap-6 px-6 py-4 cursor-pointer hover:scale-110 transition-transform">
-          <Image src="/expand.png" alt="expand" width={30} height={30} className={`transition-transform duration-300 ${expanded ? "rotate-0" : "rotate-180"}`}/>
+    <aside
+      className={`hidden lg:flex flex-col z-[1000] bg-[#101922]/95 backdrop-blur-md border-r border-[#1e3246]/50 h-full shadow-xl shadow-black/40 transition-all duration-300 ${
+        expanded ? "w-56" : "w-20"
+      }`}
+    >
+      <div className="flex flex-col justify-start py-6 h-full">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-3 px-6 py-4 cursor-pointer hover:bg-[#233648]/30 rounded-2xl mx-2 transition-colors"
+          aria-label={expanded ? "Collapse navigation" : "Expand navigation"}
+        >
+          {expanded ? (
+            <PanelLeftClose className="w-7 h-7 text-[#92adc9] hover:text-white shrink-0 transition-colors" strokeWidth={1.75} />
+          ) : (
+            <PanelLeftOpen className="w-7 h-7 text-[#92adc9] hover:text-white shrink-0 transition-colors" strokeWidth={1.75} />
+          )}
         </button>
 
-        {navItems.map((item) => {
+        {MAIN_NAV_ITEMS.map((item) => {
           const isActive = active === item.id;
+          const Icon = item.Icon;
           return (
-            <Link key={item.id} href={item.href}
-              className={`flex flex-col md:flex-row items-center gap-1 md:gap-6 px-4 py-3 md:py-4 cursor-pointer group transition-all duration-300 flex-1 md:flex-initial
-                ${isActive ? "bg-[#233648]/60 md:bg-[#233648] md:border-r-4 border-blue-600 rounded-2xl" : "hover:bg-[#233648]/30 rounded-2xl"}
-                ${expanded ? "md:justify-start md:px-6 md:w-full" : "md:justify-center md:px-0 md:w-full"}`}
+            <Link
+              key={item.id}
+              href={item.href}
+              className={`flex flex-row items-center gap-4 px-4 py-3.5 mx-2 rounded-2xl cursor-pointer group transition-all duration-300
+                ${isActive ? "bg-[#233648] border-r-4 border-blue-600" : "hover:bg-[#233648]/30"}
+                ${expanded ? "justify-start pl-5" : "justify-center px-0"}`}
             >
-              <div className="relative flex items-center justify-center transition-all duration-300 flex-shrink-0">
-                {item.lucide ? (
-                  <CalendarRange size={30} className={`transition-all duration-300 ${isActive ? "text-white scale-110" : "text-[#92adc9]/60 group-hover:text-[#92adc9] group-hover:scale-110"}`}/>
-                ) : (
-                  <Image src={isActive ? item.activeIcon : item.icon} alt={item.label} width={32} height={32}
-                    className={`transition-all duration-300 ${isActive ? "scale-110" : "opacity-60 group-hover:opacity-100 group-hover:scale-110"}`}/>
-                )}
+              <div className="relative flex items-center justify-center shrink-0 w-8 h-8">
+                <Icon
+                  className={`w-7 h-7 transition-all duration-300 ${
+                    isActive
+                      ? "text-white scale-105"
+                      : "text-[#92adc9]/70 group-hover:text-[#92adc9] group-hover:scale-105"
+                  }`}
+                  strokeWidth={isActive ? 2.25 : 1.75}
+                />
               </div>
-              <div className={`overflow-hidden transition-all duration-300 ${expanded ? "max-w-[200px] opacity-100" : "md:max-w-0 md:opacity-0"}`}>
-                <span className={`block text-[11px] md:text-[14px] font-medium whitespace-nowrap transition-all duration-300 ${isActive ? "font-bold text-blue-400 md:text-white" : "text-[#92adc9]"}`}>
+              <div
+                className={`overflow-hidden transition-all duration-300 ${
+                  expanded ? "max-w-[200px] opacity-100" : "max-w-0 opacity-0 pointer-events-none"
+                }`}
+              >
+                <span
+                  className={`block text-sm font-medium whitespace-nowrap transition-all duration-300 ${
+                    isActive ? "font-semibold text-white" : "text-[#92adc9]"
+                  }`}
+                >
                   {item.label}
                 </span>
               </div>

@@ -9,6 +9,7 @@ interface GlowCardProps {
   width?: string | number;
   height?: string | number;
   customSize?: boolean; // When true, ignores size prop and uses width/height or className
+  focused?: boolean;
 }
 
 const glowColorMap = {
@@ -33,6 +34,7 @@ const GlowCard: React.FC<GlowCardProps> = ({
   width,
   height,
   customSize = false,
+  focused = false,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -42,22 +44,36 @@ const GlowCard: React.FC<GlowCardProps> = ({
       const { clientX: x, clientY: y } = e;
 
       if (cardRef.current) {
-        cardRef.current.style.setProperty("--x", x.toFixed(2));
+        const rect = cardRef.current.getBoundingClientRect();
+        const localX = x - rect.left;
+        const localY = y - rect.top;
+
+        cardRef.current.style.setProperty("--x", localX.toFixed(2));
+        cardRef.current.style.setProperty("--y", localY.toFixed(2));
         cardRef.current.style.setProperty(
           "--xp",
-          (x / window.innerWidth).toFixed(2),
+          (localX / rect.width).toFixed(2),
         );
-        cardRef.current.style.setProperty("--y", y.toFixed(2));
         cardRef.current.style.setProperty(
           "--yp",
-          (y / window.innerHeight).toFixed(2),
+          (localY / rect.height).toFixed(2),
         );
       }
     };
 
-    document.addEventListener("pointermove", syncPointer);
+    if (!focused) {
+        document.addEventListener("pointermove", syncPointer);
+    } else if (cardRef.current) {
+        // Center the glow when focused if no mouse move
+        const rect = cardRef.current.getBoundingClientRect();
+        cardRef.current.style.setProperty("--x", (rect.width / 2).toFixed(2));
+        cardRef.current.style.setProperty("--y", (rect.height / 2).toFixed(2));
+        cardRef.current.style.setProperty("--xp", "0.5");
+        cardRef.current.style.setProperty("--yp", "0.5");
+    }
+
     return () => document.removeEventListener("pointermove", syncPointer);
-  }, []);
+  }, [focused]);
 
   const { base, spread } = glowColorMap[glowColor];
 
@@ -88,13 +104,13 @@ const GlowCard: React.FC<GlowCardProps> = ({
         var(--spotlight-size) var(--spotlight-size) at
         calc(var(--x, 0) * 1px)
         calc(var(--y, 0) * 1px),
-        hsl(var(--hue, 210) calc(var(--saturation, 100) * 1%) calc(var(--lightness, 70) * 1%) / var(--bg-spot-opacity, 0.1)), transparent
+        hsl(var(--hue, 210) calc(var(--saturation, 100) * 1%) calc(var(--lightness, 70) * 1%) / var(--bg-spot-opacity, 0)), transparent
       )`,
       backgroundColor: "var(--backdrop, transparent)",
       backgroundSize:
         "calc(100% + (2 * var(--border-size))) calc(100% + (2 * var(--border-size)))",
       backgroundPosition: "50% 50%",
-      backgroundAttachment: "fixed",
+      backgroundAttachment: "local",
       border: "var(--border-size) solid var(--backup-border)",
       position: "relative",
       touchAction: "none",
@@ -112,6 +128,20 @@ const GlowCard: React.FC<GlowCardProps> = ({
   };
 
   const beforeAfterStyles = `
+    [data-glow] {
+      --bg-spot-opacity: 0;
+      --border-spot-opacity: 0;
+      --border-light-opacity: 0;
+      transition: --bg-spot-opacity 0.5s, --border-spot-opacity 0.5s, --border-light-opacity 0.5s;
+    }
+
+    [data-glow]:hover,
+    [data-glow][data-focused="true"] {
+      --bg-spot-opacity: 0.15;
+      --border-spot-opacity: 1;
+      --border-light-opacity: 1;
+    }
+
     [data-glow]::before,
     [data-glow]::after {
       pointer-events: none;
@@ -120,7 +150,7 @@ const GlowCard: React.FC<GlowCardProps> = ({
       inset: calc(var(--border-size) * -1);
       border: var(--border-size) solid transparent;
       border-radius: calc(var(--radius) * 1px);
-      background-attachment: fixed;
+      background-attachment: local;
       background-size: calc(100% + (2 * var(--border-size))) calc(100% + (2 * var(--border-size)));
       background-repeat: no-repeat;
       background-position: 50% 50%;
@@ -134,7 +164,7 @@ const GlowCard: React.FC<GlowCardProps> = ({
         calc(var(--spotlight-size) * 0.75) calc(var(--spotlight-size) * 0.75) at
         calc(var(--x, 0) * 1px)
         calc(var(--y, 0) * 1px),
-        hsl(var(--hue, 210) calc(var(--saturation, 100) * 1%) calc(var(--lightness, 50) * 1%) / var(--border-spot-opacity, 1)), transparent 100%
+        hsl(var(--hue, 210) calc(var(--saturation, 100) * 1%) calc(var(--lightness, 50) * 1%) / var(--border-spot-opacity, 0)), transparent 100%
       );
       filter: brightness(2);
     }
@@ -144,7 +174,7 @@ const GlowCard: React.FC<GlowCardProps> = ({
         calc(var(--spotlight-size) * 0.5) calc(var(--spotlight-size) * 0.5) at
         calc(var(--x, 0) * 1px)
         calc(var(--y, 0) * 1px),
-        hsl(0 100% 100% / var(--border-light-opacity, 1)), transparent 100%
+        hsl(0 100% 100% / var(--border-light-opacity, 0)), transparent 100%
       );
     }
     
@@ -173,6 +203,7 @@ const GlowCard: React.FC<GlowCardProps> = ({
       <div
         ref={cardRef}
         data-glow
+        data-focused={focused}
         style={getInlineStyles()}
         className={`
           ${getSizeClasses()}
@@ -185,6 +216,7 @@ const GlowCard: React.FC<GlowCardProps> = ({
           p-4 
           gap-4 
           backdrop-blur-[5px]
+          transition-all duration-500
           ${className}
         `}
       >

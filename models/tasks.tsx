@@ -71,6 +71,9 @@ const taskSchema = new Schema(
   }
 );
 
+taskSchema.index({ completed: 1, dateCreated: -1 });
+taskSchema.index({ userId: 1 });
+
 // ✅ Check if model already exists to avoid OverwriteModelError
 const Tasks = mongoose.models.tasks || mongoose.model("tasks", taskSchema);
 

@@ -1,6 +1,5 @@
 // app/components/patterns/p-dropdown-menu-12.tsx
 "use client";
-import { useState, useEffect } from 'react';
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
