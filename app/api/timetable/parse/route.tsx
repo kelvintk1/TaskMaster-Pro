@@ -4,6 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 export const maxDuration = 60;
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+// Using gemini-1.5-flash as it has more reliable free-tier quotas than 2.0-flash currently
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 function buildPrompt(courses: string[]): string {
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
       // Handle both ESM and CJS import variations
       const extractRawText = mammoth.extractRawText || (mammoth as any).default?.extractRawText;
       if (!extractRawText) throw new Error("Mammoth library failed to load correctly.");
-      
+
       const { value: text } = await extractRawText({ buffer });
       result = await model.generateContent(`${prompt}\n\nTIMETABLE CONTENT:\n${text}`);
     } else {

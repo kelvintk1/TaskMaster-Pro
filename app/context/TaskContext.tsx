@@ -51,13 +51,13 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    refreshTasks();
+    refreshTasks({ completed: false });
     
     // Sync tasks across tabs
     const handleStorageChange = (e: StorageEvent) => {
       const syncKeys = ["taskCreated", "taskUpdated", "taskDeleted", "taskCompleted", "taskUndone"];
       if (syncKeys.includes(e.key || "")) {
-        refreshTasks();
+        refreshTasks({ completed: false });
       }
     };
     window.addEventListener("storage", handleStorageChange);
