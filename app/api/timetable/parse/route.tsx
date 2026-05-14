@@ -1,20 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { parseTimetableText } from "@/lib/timetableParser";
 
 export const maxDuration = 60;
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-// Using gemini-1.5-flash as it has more reliable free-tier quotas than 2.0-flash currently
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+// ---------------------------------------------------------------------------
+// Text extraction helpers (all run server-side, no external API)
+// ---------------------------------------------------------------------------
 
-function buildPrompt(courses: string[]): string {
-  const courseList = courses.length > 0 ? courses.join(", ") : "any courses found in the timetable";
-  return `You are a university timetable parser. Extract ALL class sessions from this timetable.
-The student is enrolled in these courses: ${courseList}.
-Return ONLY a valid JSON array (no markdown, no code blocks, no explanation). Each object must have exactly:
-[{"course":"course name (match list above when possible)","day":"Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday","startTime":"HH:MM 24hr","endTime":"HH:MM 24hr","location":"room or empty string","type":"Lecture|Tutorial|Lab|Study|Seminar|Workshop|Other"}]
-If no schedule found, return: []`;
+async function extractFromDocx(buffer: Buffer): Promise<string> {
+  const mammoth = await import("mammoth");
+  const extractRawText =
+    mammoth.extractRawText ?? (mammoth as any).default?.extractRawText;
+  if (!extractRawText) throw new Error("Mammoth failed to load.");
+  const { value } = await extractRawText({ buffer });
+  return value;
 }
+
+async function extractFromPdf(buffer: Buffer): Promise<string> {
+  const { getDocumentProxy, extractText } = await import("unpdf");
+  const pdf = await getDocumentProxy(new Uint8Array(buffer));
+  const { text } = await extractText(pdf, { mergePages: true });
+
+  // Strip PDF structural artifacts that unpdf sometimes emits
+  return text
+    .replace(/\bblock\s+elements?\b/gi, "")
+    .replace(/\binline\s+elements?\b/gi, "")
+    .replace(/\bbox\s+elements?\b/gi, "")
+    .replace(/\bspan\s+elements?\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+async function extractFromImage(buffer: Buffer, mimeType: string): Promise<string> {
+  const { createWorker } = await import("tesseract.js");
+  const worker = await createWorker("eng");
+  try {
+    // tesseract.js v4+ accepts a Buffer directly
+    const { data: { text } } = await worker.recognize(buffer);
+    return text;
+  } finally {
+    await worker.terminate();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Route
+// ---------------------------------------------------------------------------
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,41 +53,67 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File | null;
     const coursesJson = formData.get("courses") as string;
 
-    if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    if (!file) {
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
 
     const courses: string[] = coursesJson ? JSON.parse(coursesJson) : [];
-    const prompt = buildPrompt(courses);
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const mimeType = file.type;
+    const fileName = file.name.toLowerCase();
 
-    let result;
-    if (mimeType.includes("wordprocessingml") || file.name.endsWith(".docx")) {
-      const mammoth = await import("mammoth");
-      // Handle both ESM and CJS import variations
-      const extractRawText = mammoth.extractRawText || (mammoth as any).default?.extractRawText;
-      if (!extractRawText) throw new Error("Mammoth library failed to load correctly.");
+    // ── Extract raw text ──────────────────────────────────────────────────
+    let rawText = "";
 
-      const { value: text } = await extractRawText({ buffer });
-      result = await model.generateContent(`${prompt}\n\nTIMETABLE CONTENT:\n${text}`);
+    if (mimeType.includes("wordprocessingml") || fileName.endsWith(".docx")) {
+      rawText = await extractFromDocx(buffer);
+    } else if (mimeType === "application/pdf" || fileName.endsWith(".pdf")) {
+      rawText = await extractFromPdf(buffer);
+    } else if (
+      mimeType.startsWith("image/") ||
+      [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff", ".tif"].some((ext) =>
+        fileName.endsWith(ext)
+      )
+    ) {
+      rawText = await extractFromImage(buffer, mimeType);
     } else {
-      const base64 = buffer.toString("base64");
-      result = await model.generateContent([prompt, { inlineData: { data: base64, mimeType: mimeType || "application/pdf" } }]);
+      return NextResponse.json(
+        { error: "Unsupported file type. Please upload a PDF, Word document, or image." },
+        { status: 415 }
+      );
     }
 
-    const raw = result.response.text().trim()
-      .replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
-
-    let sessions;
-    try { sessions = JSON.parse(raw); } catch {
-      return NextResponse.json({ error: "Could not parse timetable. Try a clearer image or document." }, { status: 422 });
+    if (!rawText.trim()) {
+      return NextResponse.json(
+        { error: "Could not extract any text from the file. Try a clearer scan or a text-based PDF." },
+        { status: 422 }
+      );
     }
 
-    if (!Array.isArray(sessions)) return NextResponse.json({ error: "Unexpected AI response format." }, { status: 422 });
+    // ── Parse timetable ───────────────────────────────────────────────────
+    // DEBUG: log extracted text so we can tune the parser
+    console.log("[timetable/parse] Extracted text (first 2000 chars):\n", rawText.slice(0, 2000));
+
+    const sessions = parseTimetableText(rawText, courses);
+
+    if (sessions.length === 0) {
+      // Return the extracted text in dev so we can inspect it
+      return NextResponse.json(
+        {
+          error: "No timetable sessions found. Make sure the file contains a schedule with days and times.",
+          debug_rawText: rawText.slice(0, 3000),
+        },
+        { status: 422 }
+      );
+    }
 
     return NextResponse.json({ sessions });
   } catch (err: any) {
     console.error("Parse error:", err);
-    return NextResponse.json({ error: err.message || "Failed to parse timetable" }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || "Failed to parse timetable" },
+      { status: 500 }
+    );
   }
 }
