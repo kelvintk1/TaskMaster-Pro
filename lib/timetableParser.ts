@@ -27,9 +27,25 @@ const TYPE_KEYWORDS: Record<string, string> = {
   study: "Study", revision: "Study",
 };
 
-const MODE_RE = /\b(online|onsite|on[\s-]?site|physical|virtual|in[\s-]?person|hybrid)\b/i;
+const MODE_RE = /\b(online|onsite|on[\s-]?site|physical|virtual|in[\s-]?person|hybrid|remote)\b/i;
 
 // ── Utilities ────────────────────────────────────────────────────────────────
+
+function cleanText(text: string): string {
+  return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
+    .replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function hasLocationOrVenueColumn(text: string): boolean {
+  // Only activate location extraction if "LOCATION" or "VENUE" appears on a header line
+  const lines = text.split("\n");
+  for (const line of lines) {
+    if (line.length < 150 && /\b(location|venue)\b/i.test(line) && /\b(time|date|course|code|subject|mode)\b/i.test(line)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 function normaliseTime(raw: string): string {
   const m = raw.trim().match(/^(\d{1,2}):?(\d{2})?\s*(am|pm)?$/i);
@@ -70,12 +86,7 @@ function guessType(text: string): string {
   for (const [kw, val] of Object.entries(TYPE_KEYWORDS)) {
     if (new RegExp(`\\b${kw}\\b`).test(lo)) return val;
   }
-  return "Lecture";
-}
-
-function cleanText(text: string): string {
-  return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
-    .replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  return "Exam";
 }
 
 function extractDate(text: string): string {
@@ -84,47 +95,35 @@ function extractDate(text: string): string {
   return m ? m[0].trim() : "";
 }
 
-/**
- * Extract mode ONLY — never extract location unless an explicit
- * room/hall/lt/block keyword + ID is present.
- * "Onsite", "Physical", "Online" are MODE words, NOT locations.
- */
 function extractMode(text: string): string {
+  const fullMatch = text.match(/\b(Onsite\/Physical|Onsite\/Online|Physical|Online|Virtual|Hybrid)\b/i);
+  if (fullMatch) return fullMatch[1].trim();
   const m = text.match(MODE_RE);
   return m ? m[1].trim() : "";
 }
 
-/**
- * Extract location ONLY if an explicit venue keyword + alphanumeric ID exists.
- * e.g. "Room 204", "Hall B", "LT3", "Block A2"
- * "Theatre", "Onsite", "Physical" are NOT locations.
- */
-function extractLocation(text: string): string {
-  const m = text.match(/\b(room|rm|hall|lt|block|blk|building)\s+([A-Z0-9]{1,10})\b/i);
+/** Location only allowed if "Location" or "Venue" column exists */
+function extractLocation(text: string, hasColumn: boolean): string {
+  if (!hasColumn) return "";
+
+  const m = text.match(/\b(room|rm|hall|lt|lecture theatre|auditorium|block|blk|building|venue|lab|classroom)\b\s*[:\-]?\s*([A-Z0-9]{1,10}(?:\s+[A-Z0-9]{1,10})?)\b/i);
   if (!m) return "";
-  const id = m[2].toLowerCase();
-  // Never treat mode words as room IDs
-  if (["online", "onsite", "physical", "virtual", "hybrid"].includes(id)) return "";
-  return m[0].trim().slice(0, 50);
+
+  const fullMatch = m[0].trim().toLowerCase();
+  if (/main|chs|acc|campus|batch|only|sakai|student|exam|communicated|later/i.test(fullMatch)) return "";
+
+  return m[0].trim();
 }
 
-/**
- * Match a course code token against user's course list.
- * Strict — exact code match only.
- */
 function matchCourseCode(code: string, courses: string[]): string | null {
   const norm = code.replace(/\s+/g, "").toUpperCase();
   for (const c of courses) {
-    // Check code in parens e.g. "Networks (DCIT321)"
     const parenMatch = c.match(/\(([^)]+)\)/);
-    if (parenMatch) {
-      if (parenMatch[1].replace(/\s+/g, "").toUpperCase() === norm) return c;
-      continue;
-    }
-    // Extract just the code part (letters+digits) from the course string
-    const codeOnly = c.match(/\b([A-Z]{2,6}\d{3,4}[A-Z]?)\b/i);
-    if (codeOnly && codeOnly[1].toUpperCase() === norm) return c;
-    // Course string is just the code itself e.g. "DCIT321"
+    if (parenMatch && parenMatch[1].replace(/\s+/g, "").toUpperCase() === norm) return c;
+
+    const codeOnly = c.match(/\b([A-Z]{2,6}\s*\d{3,4}[A-Z]?)\b/i);
+    if (codeOnly && codeOnly[1].replace(/\s+/g, "").toUpperCase() === norm) return c;
+
     if (c.replace(/\s+/g, "").toUpperCase() === norm) return c;
   }
   return null;
@@ -143,9 +142,8 @@ function dedup(sessions: ParsedSession[]): ParsedSession[] {
 // ── Time helpers ─────────────────────────────────────────────────────────────
 
 function extractTimeRange(text: string): { start: string; end: string; raw: string } | null {
-  const m =
-    text.match(/(\d{1,2}(?::\d{2})\s*(?:am|pm)?)\s*[-–—to]+\s*(\d{1,2}(?::\d{2})\s*(?:am|pm)?)/i) ||
-    text.match(/(\d{1,2}\s*(?:am|pm))\s*[-–—to]+\s*(\d{1,2}\s*(?:am|pm))/i);
+  const m = text.match(/(\d{1,2}(?::\d{2})\s*(?:am|pm)?)\s*(?:[-–—]|to|\s+)\s*(\d{1,2}(?::\d{2})\s*(?:am|pm)?)/i) ||
+    text.match(/(\d{1,2}\s*(?:am|pm))\s*(?:[-–—]|to|\s+)\s*(\d{1,2}\s*(?:am|pm))/i);
   if (!m) return null;
   const start = normaliseTime(m[1]);
   const end = normaliseTime(m[2]);
@@ -166,24 +164,9 @@ function defaultDuration(type: string): number {
   return ({ Exam: 3, Lab: 2, Workshop: 2, Study: 2 } as Record<string, number>)[type] ?? 1;
 }
 
-// ── Strategy: Exam timetable (time-block sections) ───────────────────────────
-/**
- * Handles the format seen in the debug output:
- *
- *   WEDNESDAY, APRIL 7, 2026
- *   7:30 AM
- *   DCIT321  Course Name  ...  Onsite/Physical
- *   DCIT323  Course Name  ...  Onsite/Online
- *   11:30 AM
- *   DCIT321  ...
- *
- * Logic:
- * - Track current day from "WEDNESDAY, APRIL 7, 2026" lines
- * - Track current start time from standalone time lines
- * - For each line containing a course code, extract course + mode
- * - Location is NEVER set unless an explicit room/hall/lt keyword appears
- */
+// ── Main Strategy: Exam Timetable ───────────────────────
 function extractExamTimetable(text: string, courses: string[]): ParsedSession[] {
+  const hasLocationColumn = hasLocationOrVenueColumn(text);
   const sessions: ParsedSession[] = [];
   const lines = text.split("\n");
 
@@ -193,74 +176,64 @@ function extractExamTimetable(text: string, courses: string[]): ParsedSession[] 
   let currentEnd = "";
   const preambleType = guessType(text.slice(0, 300));
 
-  // Course code pattern: 2-6 uppercase letters + 3-4 digits
-  const COURSE_CODE_RE = /\b([A-Z]{2,6}\d{3,4}[A-Z]?)\b/;
-
   for (const line of lines) {
     const stripped = line.trim();
     if (!stripped) continue;
 
-    // ── Detect day line e.g. "WEDNESDAY, APRIL 7, 2026" ──
+    // Detect day + date
     const dayFound = findDay(stripped);
     const dateFound = extractDate(stripped);
     if (dayFound && (dateFound || /\d{4}/.test(stripped))) {
       currentDay = dayFound;
       currentDate = dateFound;
-      continue;
+    } else if (dayFound && !currentDay) {
+      currentDay = dayFound;
     }
 
-    // ── Detect standalone time line e.g. "7:30 AM" or "11:30 AM" ──
+    // Detect time
     const range = extractTimeRange(stripped);
     if (range) {
       currentStart = range.start;
       currentEnd = range.end;
-      continue;
-    }
-    const single = extractSingleTime(stripped);
-    // Only treat as a time header if the line is short and mostly just a time
-    if (single && stripped.replace(single.raw, "").trim().length < 10) {
-      currentStart = single.start;
-      const type = preambleType;
-      currentEnd = addHours(single.start, defaultDuration(type));
-      continue;
+    } else {
+      const single = extractSingleTime(stripped);
+      if (single) {
+        currentStart = single.start;
+        currentEnd = addHours(single.start, defaultDuration(preambleType));
+      }
     }
 
-    // ── Detect course line ──
     if (!currentDay || !currentStart) continue;
 
-    const codeMatch = stripped.match(COURSE_CODE_RE);
-    if (!codeMatch) continue;
+    // Support multiple courses on the same line
+    const COURSE_CODE_RE_GLOBAL = /\b([A-Z]{2,6}\s*\d{3,4}[A-Z]?)\b/g;
+    let m;
+    while ((m = COURSE_CODE_RE_GLOBAL.exec(stripped)) !== null) {
+      const code = m[1];
+      const course = matchCourseCode(code, courses);
+      if (!course) continue;
 
-    const code = codeMatch[1];
+      const mode = extractMode(stripped);
+      const location = extractLocation(stripped, hasLocationColumn);
+      const type = guessType(stripped + " " + text.slice(0, 300));
 
-    // Only include if this code matches one of the user's courses
-    const course = matchCourseCode(code, courses);
-    if (!course) continue; // skip courses not in user's list
-
-    // Extract mode from the line
-    const mode = extractMode(stripped);
-
-    // Location: strictly only explicit venue keyword + ID
-    const location = extractLocation(stripped);
-
-    const type = guessType(stripped + " " + text.slice(0, 300));
-
-    sessions.push({
-      course,
-      day: currentDay,
-      date: currentDate,
-      startTime: currentStart,
-      endTime: currentEnd,
-      location,
-      mode,
-      type,
-    });
+      sessions.push({
+        course,
+        day: currentDay,
+        date: currentDate,
+        startTime: currentStart,
+        endTime: currentEnd || addHours(currentStart, defaultDuration(type)),
+        location,
+        mode,
+        type,
+      });
+    }
   }
 
   return sessions;
 }
 
-// ── Strategy: Course-code segmented ─────────────────────────────────────────
+// Other strategies (kept for fallback)
 function extractCourseCoded(text: string, courses: string[]): ParsedSession[] {
   const sessions: ParsedSession[] = [];
   const preamble = text.slice(0, 400);
@@ -273,7 +246,7 @@ function extractCourseCoded(text: string, courses: string[]): ParsedSession[] {
     if (!code || !context) continue;
 
     const course = matchCourseCode(code, courses);
-    if (!course) continue; // skip non-user courses
+    if (!course) continue;
 
     const day = findDay(context);
     if (!day) continue;
@@ -285,7 +258,9 @@ function extractCourseCoded(text: string, courses: string[]): ParsedSession[] {
 
     let startTime: string, endTime: string, timeRaw: string;
     if (range) {
-      startTime = range.start; endTime = range.end; timeRaw = range.raw;
+      startTime = range.start;
+      endTime = range.end;
+      timeRaw = range.raw;
     } else {
       startTime = single!.start;
       endTime = addHours(startTime, defaultDuration(guessType(context) || preambleType));
@@ -294,47 +269,52 @@ function extractCourseCoded(text: string, courses: string[]): ParsedSession[] {
 
     const timeIdx = context.indexOf(timeRaw);
     const afterTime = timeIdx !== -1 ? context.slice(timeIdx + timeRaw.length) : "";
-    const location = extractLocation(afterTime);
+    const hasColumn = hasLocationOrVenueColumn(text);
+    const location = extractLocation(afterTime, hasColumn);
     const mode = extractMode(afterTime);
     const type = guessType(context + " " + preamble);
 
     sessions.push({ course, day, date, startTime, endTime, location, mode, type });
   }
-
   return sessions;
 }
 
-// ── Strategy: Row-per-session ────────────────────────────────────────────────
 function extractRowPerSession(text: string, courses: string[]): ParsedSession[] {
   const sessions: ParsedSession[] = [];
   const lines = text.split("\n");
+  const hasColumn = hasLocationOrVenueColumn(text);
+
+  let currentDay = "";
+  let currentDate = "";
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+
+    const dayFound = findDay(line);
+    const dateFound = extractDate(line);
+    if (dayFound) {
+      currentDay = dayFound;
+      if (dateFound || /\d{4}/.test(line)) {
+        currentDate = dateFound;
+      }
+    }
+
     const range = extractTimeRange(line);
     const single = !range ? extractSingleTime(line) : null;
     if (!range && !single) continue;
 
-    let day = findDay(line);
-    if (!day) {
-      for (let b = 1; b <= 5 && i - b >= 0; b++) {
-        day = findDay(lines[i - b]);
-        if (day) break;
-      }
-    }
-    if (!day) continue;
+    if (!currentDay) continue;
 
     const startTime = range ? range.start : single!.start;
     const endTime = range ? range.end : addHours(single!.start, 1);
     const raw = range ? range.raw : single!.raw;
 
-    const location = extractLocation(line.replace(raw, " "));
+    const location = extractLocation(line.replace(raw, " "), hasColumn);
     const mode = extractMode(line);
-    const date = extractDate(line);
+    const date = currentDate || extractDate(line);
     const type = guessType(line);
 
-    // Only include if a user course is found in this line
-    const COURSE_CODE_RE = /\b([A-Z]{2,6}\d{3,4}[A-Z]?)\b/g;
+    const COURSE_CODE_RE = /\b([A-Z]{2,6}\s*\d{3,4}[A-Z]?)\b/g;
     let matched: string | null = null;
     let m;
     while ((m = COURSE_CODE_RE.exec(line)) !== null) {
@@ -343,23 +323,22 @@ function extractRowPerSession(text: string, courses: string[]): ParsedSession[] 
     }
     if (!matched) continue;
 
-    sessions.push({ course: matched, day, date, startTime, endTime, location, mode, type });
+    sessions.push({ course: matched, day: currentDay, date, startTime, endTime, location, mode, type });
   }
-
   return sessions;
 }
 
-// ── Strategy: Grid ───────────────────────────────────────────────────────────
 function extractGrid(text: string, courses: string[]): ParsedSession[] {
   const sessions: ParsedSession[] = [];
   const lines = text.split("\n").filter(l => l.trim());
+  const hasColumn = hasLocationOrVenueColumn(text);
   const DAY_RE = new RegExp(`\\b(${DAYS.join("|")}|Mon|Tue|Tues|Wed|Weds|Thu|Thur|Thurs|Fri|Sat|Sun)\\b`, "gi");
 
   let headerIdx = -1;
   let headerDays: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const matches = [...lines[i].matchAll(new RegExp(DAY_RE.source, "gi"))];
+    const matches = [...lines[i].matchAll(DAY_RE)];
     if (matches.length >= 2) {
       headerIdx = i;
       headerDays = matches.map(m => resolveDay(m[0]) ?? m[0]);
@@ -386,36 +365,38 @@ function extractGrid(text: string, courses: string[]): ParsedSession[] {
     headerDays.forEach((day, idx) => {
       const cell = cells[off + idx]?.trim();
       if (!cell || cell === "-" || cell.length < 2) return;
-      const COURSE_CODE_RE = /\b([A-Z]{2,6}\d{3,4}[A-Z]?)\b/;
-      const cm = cell.match(COURSE_CODE_RE);
+
+      const cm = cell.match(/\b([A-Z]{2,6}\s*\d{3,4}[A-Z]?)\b/);
       if (!cm) return;
       const course = matchCourseCode(cm[1], courses);
       if (!course) return;
-      const location = extractLocation(cell);
+
+      const location = extractLocation(cell, hasColumn);
       const mode = extractMode(cell);
       const date = extractDate(line);
       const type = guessType(cell);
+
       sessions.push({ course, day, date, startTime: curStart!, endTime: curEnd!, location, mode, type });
     });
   }
-
   return sessions;
 }
 
-// ── Strategy: Day-block ──────────────────────────────────────────────────────
 function extractDayBlocks(text: string, courses: string[]): ParsedSession[] {
   const sessions: ParsedSession[] = [];
   const lines = text.split("\n");
+  const hasColumn = hasLocationOrVenueColumn(text);
   let currentDay: string | null = null;
 
   for (const line of lines) {
     const stripped = line.trim();
     if (!stripped) continue;
 
-    const dayOnly = stripped.match(
-      new RegExp(`^(${DAYS.join("|")}|Mon|Tue|Tues|Wed|Weds|Thu|Thur|Thurs|Fri|Sat|Sun)[.:,\\s]*$`, "i")
-    );
-    if (dayOnly) { currentDay = resolveDay(dayOnly[1]); continue; }
+    const dayOnly = stripped.match(new RegExp(`^(${DAYS.join("|")}|Mon|Tue|Tues|Wed|Weds|Thu|Thur|Thurs|Fri|Sat|Sun)[.:,\\s]*$`, "i"));
+    if (dayOnly) {
+      currentDay = resolveDay(dayOnly[1]);
+      continue;
+    }
     if (!currentDay) continue;
 
     const range = extractTimeRange(stripped);
@@ -426,19 +407,18 @@ function extractDayBlocks(text: string, courses: string[]): ParsedSession[] {
     const endTime = range ? range.end : addHours(single!.start, 1);
     const raw = range ? range.raw : single!.raw;
 
-    const COURSE_CODE_RE = /\b([A-Z]{2,6}\d{3,4}[A-Z]?)\b/;
-    const cm = stripped.match(COURSE_CODE_RE);
+    const cm = stripped.match(/\b([A-Z]{2,6}\s*\d{3,4}[A-Z]?)\b/);
     if (!cm) continue;
     const course = matchCourseCode(cm[1], courses);
     if (!course) continue;
 
-    const location = extractLocation(stripped.replace(raw, " "));
+    const location = extractLocation(stripped.replace(raw, " "), hasColumn);
     const mode = extractMode(stripped);
     const date = extractDate(line);
     const type = guessType(stripped);
+
     sessions.push({ course, day: currentDay, date, startTime, endTime, location, mode, type });
   }
-
   return sessions;
 }
 
@@ -446,16 +426,13 @@ function extractDayBlocks(text: string, courses: string[]): ParsedSession[] {
 export function parseTimetableText(text: string, courses: string[]): ParsedSession[] {
   const clean = cleanText(text);
 
-  // Try exam-timetable strategy first (handles the section-header format)
-  const exam = extractExamTimetable(clean, courses);
-  if (exam.length > 0) return dedup(exam);
-
-  // Fall back to other strategies
-  const coded = extractCourseCoded(clean, courses);
   const rows = extractRowPerSession(clean, courses);
   const grid = extractGrid(clean, courses);
   const blocks = extractDayBlocks(clean, courses);
+  const exam = extractExamTimetable(clean, courses);
+  const coded = extractCourseCoded(clean, courses);
 
-  const best = [coded, rows, grid, blocks].reduce((a, b) => b.length > a.length ? b : a, []);
-  return dedup(best.length > 0 ? best : [coded, rows, grid, blocks].flat());
+  const strategies = [rows, grid, blocks, exam, coded];
+  const best = strategies.reduce((a, b) => b.length > a.length ? b : a, []);
+  return dedup(best.length > 0 ? best : strategies.flat());
 }

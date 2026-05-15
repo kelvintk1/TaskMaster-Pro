@@ -11,6 +11,17 @@ const COLORS = ["#2563EB", "#7C3AED", "#DB2777", "#16A34A", "#0891B2", "#D97706"
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const TYPES = ["Lecture", "Tutorial", "Lab", "Exam", "Study", "Seminar", "Workshop", "Other"];
 
+function formatAmPm(time24: string) {
+  if (!time24) return "";
+  const [h, m] = time24.split(":");
+  let hours = parseInt(h, 10);
+  if (isNaN(hours)) return time24;
+  const suffix = hours >= 12 ? "PM" : "AM";
+  if (hours > 12) hours -= 12;
+  if (hours === 0) hours = 12;
+  return `${hours.toString().padStart(2, "0")}:${m} ${suffix}`;
+}
+
 function Toast({ msg, type, onDone }: { msg: string; type: "success" | "error"; onDone: () => void }) {
   useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t); }, [onDone]);
   return (
@@ -329,8 +340,8 @@ export default function TimetablePage() {
                                   {s.date && <span className="text-[10px] text-blue-400 font-medium">{s.date}</span>}
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-blue-400 font-mono text-xs">{s.startTime}</td>
-                              <td className="px-4 py-3 text-[#5a7fa0] font-mono text-xs">{s.endTime}</td>
+                              <td className="px-4 py-3 text-blue-400 font-mono text-xs">{formatAmPm(s.startTime)}</td>
+                              <td className="px-4 py-3 text-[#5a7fa0] font-mono text-xs">{formatAmPm(s.endTime)}</td>
                               {hasLocation && <td className="px-4 py-3 text-[#92adc9] hidden md:table-cell max-w-[140px] truncate text-xs" title={s.location}>{s.location || <span className="opacity-30">—</span>}</td>}
                               {hasMode && <td className="px-4 py-3 text-[#92adc9] hidden md:table-cell max-w-[160px] truncate text-xs" title={s.mode}>{s.mode || <span className="opacity-30">—</span>}</td>}
                               <td className="px-4 py-3">
