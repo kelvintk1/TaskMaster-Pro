@@ -7,6 +7,7 @@ import { GlowCard } from "../components/spotlight-card";
 import { CountUp } from "../components/count-up";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 import RippleLoader from "../components/ripple-loader";
 
 export default function DashboardPage() {
@@ -42,7 +43,7 @@ export default function DashboardPage() {
       .slice(0, 5);
   }, [tasks]);
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
@@ -50,7 +51,7 @@ export default function DashboardPage() {
     }
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };
