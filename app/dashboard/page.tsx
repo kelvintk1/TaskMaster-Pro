@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { useTasks } from "../context/TaskContext";
 import { GlowCard } from "../components/spotlight-card";
 import { CountUp } from "../components/count-up";
@@ -79,7 +80,7 @@ export default function DashboardPage() {
       <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-[#92adc9]">Dashboard</h1>
-          <p className="text-[#92adc9] mt-1 text-sm md:text-base font-medium">Welcome back! Here's your productivity overview.</p>
+          <p className="text-[#92adc9] mt-1 text-sm md:text-base font-medium">Welcome back! Here&apos;s your productivity overview.</p>
         </div>
       </motion.div>
 
@@ -143,7 +144,7 @@ export default function DashboardPage() {
               <span className="w-2.5 h-6 bg-gradient-to-b from-blue-400 to-blue-600 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"></span>
               Upcoming Deadlines
             </h2>
-            <a href="/" className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 px-4 py-1.5 rounded-full">View All</a>
+            <Link href="/" className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 px-4 py-1.5 rounded-full">View All</Link>
           </div>
 
           <div className="flex flex-col gap-4">
@@ -151,7 +152,7 @@ export default function DashboardPage() {
               <div className="flex flex-col items-center justify-center py-12 text-[#92adc9]">
                 <Image src="/emptyFolder.png" alt="Empty" width={120} height={120} className="opacity-50 mb-4 drop-shadow-lg" />
                 <p className="font-semibold text-lg">No upcoming tasks.</p>
-                <p className="text-sm">You're all caught up! Take a break.</p>
+                <p className="text-sm">You&apos;re all caught up! Take a break.</p>
               </div>
             ) : (
               recentTasks.map((task, idx) => (
@@ -200,7 +201,7 @@ export default function DashboardPage() {
               <h2 className="text-3xl font-black text-white leading-tight">Master your day.</h2>
               <div className="mt-4 mb-2 bg-[#101922]/50 border border-[#233648] rounded-2xl p-4 shadow-inner">
                 <p className="text-[#92adc9] text-sm leading-relaxed italic">
-                  "Success is the sum of small efforts, repeated day in and day out. Stay focused and keep building your momentum."
+                  &quot;Success is the sum of small efforts, repeated day in and day out. Stay focused and keep building your momentum.&quot;
                 </p>
               </div>
               
