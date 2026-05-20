@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useTasks } from "../context/TaskContext";
 import { GlowCard } from "../components/spotlight-card";
 import { CountUp } from "../components/count-up";
-import { ProgressBar } from "../components/progress-bar";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import RippleLoader from "../components/ripple-loader";
@@ -196,7 +195,7 @@ export default function DashboardPage() {
                 <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
                   <Image src="/star.gif" alt="" width={16} height={16} unoptimized />
                 </div>
-                <p className="text-blue-400 font-bold text-xs tracking-widest uppercase">Today's Focus</p>
+                <p className="text-blue-400 font-bold text-xs tracking-widest uppercase">Today&apos;s Focus</p>
               </div>
               <h2 className="text-3xl font-black text-white leading-tight">Master your day.</h2>
               <div className="mt-4 mb-2 bg-[#101922]/50 border border-[#233648] rounded-2xl p-4 shadow-inner">
