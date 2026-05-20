@@ -5,6 +5,7 @@ import {
   CircleDashed,
   CalendarRange,
   Settings,
+  LayoutDashboard,
 } from "lucide-react";
 
 export type MainNavItem = {
@@ -15,6 +16,7 @@ export type MainNavItem = {
 };
 
 export const MAIN_NAV_ITEMS: MainNavItem[] = [
+  { id: "dashboard", label: "Dashboard", href: "/dashboard", Icon: LayoutDashboard },
   { id: "tasks", label: "Tasks", href: "/", Icon: ClipboardList },
   { id: "completed", label: "Completed", href: "/completed", Icon: CheckCircle2 },
   { id: "uncompleted", label: "Uncompleted", href: "/uncompleted", Icon: CircleDashed },

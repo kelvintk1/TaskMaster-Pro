@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 
 interface ProfileData {
   name: string;
@@ -22,6 +24,7 @@ export default function ProfileDropdown() {
   const [open, setOpen] = useState(false);
   const [profile, setProfile] = useState<ProfileData>(defaultProfile);
   const panelRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   // Load saved profile from localStorage
   useEffect(() => {
@@ -114,13 +117,15 @@ export default function ProfileDropdown() {
             <button
               onClick={() => {
                 setOpen(false);
+                localStorage.removeItem("isAuthenticated");
+                router.push("/login");
               }}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 transition-colors group"
             >
               <div className="w-[18px] h-[18px] flex items-center justify-center">
-                 <span className="text-red-500 font-bold text-lg">×</span>
+                 <LogOut className="w-4 h-4 text-red-500" strokeWidth={2.5} />
               </div>
-              <span className="text-sm text-red-400 group-hover:text-red-300 transition-colors">Sign Out</span>
+              <span className="text-sm font-semibold text-red-400 group-hover:text-red-300 transition-colors">Sign Out</span>
             </button>
           </div>
         </div>

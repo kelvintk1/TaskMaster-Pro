@@ -114,7 +114,7 @@ export default function CompletedPage() {
       },
       monthlyTotalTasks: totalTasksThisMonth
     };
-  }, [allTasksData]);
+  }, [completedTasksData]);
 
   const groupedTasks = useMemo(() => {
     const groups: { title: string; tasks: any[] }[] = [];
