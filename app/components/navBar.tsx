@@ -17,7 +17,7 @@ export default function NavBar() {
         expanded ? "w-56" : "w-20"
       }`}
     >
-      <div className="flex flex-col justify-start py-6 h-full">
+      <div className="flex flex-col justify-start py-6 h-full overflow-y-auto no-scrollbar pb-24">
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}

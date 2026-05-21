@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useTasks } from "../context/TaskContext";
 import { GlowCard } from "../components/spotlight-card";
@@ -12,6 +12,21 @@ import RippleLoader from "../components/ripple-loader";
 
 export default function DashboardPage() {
   const { tasks, loading } = useTasks();
+
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+
+  useEffect(() => {
+    const checkSize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 768);
+      setIsTablet(width >= 768 && width < 1024);
+    };
+    checkSize();
+    window.addEventListener('resize', checkSize);
+    return () => window.removeEventListener('resize', checkSize);
+  }, []);
 
   const stats = useMemo(() => {
     const total = tasks.length;
@@ -85,9 +100,15 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Stats Grid */}
-      <motion.div variants={containerVariants} className="flex w-full items-center md:justify-start gap-4 md:gap-6 mt-4 overflow-x-auto no-scrollbar pb-4 md:pb-0 flex-nowrap md:flex-wrap snap-x snap-mandatory">
-        <motion.div variants={itemVariants} className="snap-center flex-shrink-0">
-          <GlowCard glowColor="blue" customSize className="w-[180px] h-[110px] bg-[#101922]/80 backdrop-blur-xl rounded-2xl p-4 border border-[#233648] hover:border-blue-500/30 transition-all shadow-lg">
+      <motion.div variants={containerVariants} className="flex w-full items-center md:justify-around gap-8 md:gap-4 mt-6 overflow-x-auto md:overflow-visible no-scrollbar pb-8 md:pb-0 flex-nowrap md:flex-wrap snap-x snap-mandatory py-4 px-[15%] md:px-0">
+        <motion.div 
+          variants={itemVariants}
+          className="snap-center flex-shrink-0"
+          whileInView={{ scale: 1.05 }}
+          viewport={{ amount: 0.8 }}
+          onViewportEnter={() => isMobile && setFocusedIndex(0)}
+        >
+          <GlowCard focused={isTablet || (isMobile && focusedIndex === 0)} glowColor="blue" customSize className="w-[180px] h-[110px] bg-[#101922]/80 backdrop-blur-xl rounded-2xl p-4 border border-[#233648] hover:border-blue-500/30 transition-all shadow-lg">
             <div className="flex w-full h-full flex-col justify-between">
               <span className="flex justify-between items-center">
                 <span className="font-semibold text-sm text-[#92adc9]">Active</span>
@@ -98,8 +119,14 @@ export default function DashboardPage() {
           </GlowCard>
         </motion.div>
 
-        <motion.div variants={itemVariants} className="snap-center flex-shrink-0">
-          <GlowCard glowColor="green" customSize className="w-[180px] h-[110px] bg-[#101922]/80 backdrop-blur-xl rounded-2xl p-4 border border-[#233648] hover:border-green-500/30 transition-all shadow-lg">
+        <motion.div 
+          variants={itemVariants}
+          className="snap-center flex-shrink-0"
+          whileInView={{ scale: 1.05 }}
+          viewport={{ amount: 0.8 }}
+          onViewportEnter={() => isMobile && setFocusedIndex(1)}
+        >
+          <GlowCard focused={isTablet || (isMobile && focusedIndex === 1)} glowColor="green" customSize className="w-[180px] h-[110px] bg-[#101922]/80 backdrop-blur-xl rounded-2xl p-4 border border-[#233648] hover:border-green-500/30 transition-all shadow-lg">
             <div className="flex w-full h-full flex-col justify-between">
               <span className="flex justify-between items-center">
                 <span className="font-semibold text-sm text-[#92adc9]">Completed</span>
@@ -110,8 +137,14 @@ export default function DashboardPage() {
           </GlowCard>
         </motion.div>
 
-        <motion.div variants={itemVariants} className="snap-center flex-shrink-0">
-          <GlowCard glowColor="red" customSize className="w-[180px] h-[110px] bg-[#101922]/80 backdrop-blur-xl rounded-2xl p-4 border border-[#233648] hover:border-red-500/30 transition-all shadow-lg">
+        <motion.div 
+          variants={itemVariants}
+          className="snap-center flex-shrink-0"
+          whileInView={{ scale: 1.05 }}
+          viewport={{ amount: 0.8 }}
+          onViewportEnter={() => isMobile && setFocusedIndex(2)}
+        >
+          <GlowCard focused={isTablet || (isMobile && focusedIndex === 2)} glowColor="red" customSize className="w-[180px] h-[110px] bg-[#101922]/80 backdrop-blur-xl rounded-2xl p-4 border border-[#233648] hover:border-red-500/30 transition-all shadow-lg">
             <div className="flex w-full h-full flex-col justify-between">
               <span className="flex justify-between items-center">
                 <span className="font-semibold text-sm text-[#92adc9]">Due Today</span>
@@ -122,8 +155,14 @@ export default function DashboardPage() {
           </GlowCard>
         </motion.div>
 
-        <motion.div variants={itemVariants} className="snap-center flex-shrink-0">
-          <GlowCard glowColor="purple" customSize className="w-[180px] h-[110px] bg-[#101922]/80 backdrop-blur-xl rounded-2xl p-4 border border-[#233648] hover:border-purple-500/30 transition-all shadow-lg">
+        <motion.div 
+          variants={itemVariants}
+          className="snap-center flex-shrink-0"
+          whileInView={{ scale: 1.05 }}
+          viewport={{ amount: 0.8 }}
+          onViewportEnter={() => isMobile && setFocusedIndex(3)}
+        >
+          <GlowCard focused={isTablet || (isMobile && focusedIndex === 3)} glowColor="purple" customSize className="w-[180px] h-[110px] bg-[#101922]/80 backdrop-blur-xl rounded-2xl p-4 border border-[#233648] hover:border-purple-500/30 transition-all shadow-lg">
             <div className="flex w-full h-full flex-col justify-between">
               <span className="flex justify-between items-center">
                 <span className="font-semibold text-sm text-[#92adc9]">Priority</span>
@@ -136,15 +175,15 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 mt-2">
+      <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 md:gap-8 mt-2">
         {/* Upcoming Deadlines */}
-        <motion.div variants={itemVariants} className="lg:col-span-2 bg-[#101922]/80 backdrop-blur-xl rounded-3xl border border-[#233648] p-6 shadow-2xl shadow-black/40">
+        <motion.div variants={itemVariants} className="order-2 lg:order-1 lg:col-span-2 bg-[#101922]/80 backdrop-blur-xl rounded-3xl border border-[#233648] p-6 shadow-2xl shadow-black/40">
           <div className="flex items-center justify-between mb-6 border-b border-[#233648]/60 pb-5">
             <h2 className="text-xl font-bold text-white flex items-center gap-3">
               <span className="w-2.5 h-6 bg-gradient-to-b from-blue-400 to-blue-600 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"></span>
               Upcoming Deadlines
             </h2>
-            <Link href="/" className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 px-4 py-1.5 rounded-full">View All</Link>
+            <Link href="/uncompleted" className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 px-4 py-1.5 rounded-full">View All</Link>
           </div>
 
           <div className="flex flex-col gap-4">
@@ -187,7 +226,7 @@ export default function DashboardPage() {
         </motion.div>
 
         {/* Daily Focus Widget */}
-        <motion.div variants={containerVariants} className="flex flex-col gap-6">
+        <motion.div variants={containerVariants} className="order-1 lg:order-2 flex flex-col gap-6">
           <motion.div variants={itemVariants} className="bg-gradient-to-br from-[#152232] to-[#101922] backdrop-blur-xl rounded-3xl border border-[#233648] p-8 shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-3xl rounded-full translate-x-1/3 -translate-y-1/3 group-hover:bg-blue-500/20 transition-all duration-700"></div>
             
@@ -205,28 +244,28 @@ export default function DashboardPage() {
                 </p>
               </div>
               
-              <button className="mt-8 w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2">
+              <Link href="/uncompleted" className="mt-8 w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2">
                 <span>Start Next Task</span>
                 <span className="text-xl leading-none">→</span>
-              </button>
+              </Link>
             </div>
           </motion.div>
 
           <motion.div variants={itemVariants} className="bg-[#101922]/80 backdrop-blur-xl rounded-3xl border border-[#233648] p-6 shadow-xl">
             <h3 className="font-bold text-[#92adc9] uppercase tracking-wider text-xs mb-4">Quick Links</h3>
             <div className="flex flex-col gap-3">
-              <a href="/timetable" className="flex items-center gap-4 p-3.5 rounded-2xl bg-[#152232] hover:bg-[#1e3246] border border-transparent hover:border-[#324d67] transition-all text-[#92adc9] hover:text-white group">
+              <Link href="/timetable" className="flex items-center gap-4 p-3.5 rounded-2xl bg-[#152232] hover:bg-[#1e3246] border border-transparent hover:border-[#324d67] transition-all text-[#92adc9] hover:text-white group">
                 <div className="p-2 bg-[#233648] rounded-xl group-hover:bg-blue-500/20 transition-colors">
                   <Image src="/calendar.png" alt="" width={18} height={18} className="opacity-90" />
                 </div>
                 <span className="font-bold text-sm">Upload Timetable</span>
-              </a>
-              <a href="/completed" className="flex items-center gap-4 p-3.5 rounded-2xl bg-[#152232] hover:bg-[#1e3246] border border-transparent hover:border-[#324d67] transition-all text-[#92adc9] hover:text-white group">
+              </Link>
+              <Link href="/completed" className="flex items-center gap-4 p-3.5 rounded-2xl bg-[#152232] hover:bg-[#1e3246] border border-transparent hover:border-[#324d67] transition-all text-[#92adc9] hover:text-white group">
                 <div className="p-2 bg-[#233648] rounded-xl group-hover:bg-green-500/20 transition-colors">
                   <span className="text-green-400 font-black text-sm px-1">✓</span>
                 </div>
                 <span className="font-bold text-sm">Completed Archive</span>
-              </a>
+              </Link>
             </div>
           </motion.div>
         </motion.div>

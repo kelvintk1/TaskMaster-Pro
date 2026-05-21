@@ -75,7 +75,7 @@ export default function MobileMenu() {
             aria-hidden
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute top-full right-0 mt-2 w-[min(calc(100vw-2rem),20rem)] bg-[#152232] border border-[#233648] rounded-3xl shadow-2xl shadow-black/80 z-[1001] overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="absolute top-full right-0 mt-2 w-[min(calc(100vw-2rem),20rem)] max-h-[85vh] overflow-y-auto no-scrollbar flex flex-col bg-[#152232] border border-[#233648] rounded-3xl shadow-2xl shadow-black/80 z-[1001] animate-in fade-in zoom-in duration-200">
             <div className="p-5 border-b border-[#233648] bg-gradient-to-br from-blue-900/20 to-transparent">
               <div className="flex items-center gap-4">
                 <div className="h-14 w-14 rounded-full border-2 border-blue-500/50 overflow-hidden shadow-lg shrink-0">
