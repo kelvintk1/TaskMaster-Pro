@@ -244,7 +244,7 @@ export default function DashboardPage() {
                 </p>
               </div>
               
-              <Link href="/uncompleted" className="mt-8 w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2">
+              <Link href="/" className="mt-8 w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2">
                 <span>Start Next Task</span>
                 <span className="text-xl leading-none">→</span>
               </Link>
