@@ -45,7 +45,7 @@ export default function CompleteTask({ onClose, task, onConfirm, action }: Props
     const iconSrc = isComplete ? "/complete.png" : "/undo.png";
 
     return (
-        <div onClick={onClose} className="fixed top-0 right-0 left-0 w-screen h-screen flex justify-center items-center py-8 bg-black/90 z-50">
+        <div onClick={onClose} className="fixed top-0 right-0 left-0 w-screen h-screen flex justify-center items-center py-8 bg-black/90 z-60">
             {/* Modal */}
             <div onClick={(e) => e.stopPropagation()}>
                 <GlowCard glowColor={isComplete ? 'green' : 'orange'} size='lg' customSize className='w-[95vw] max-w-[500px] p-6 rounded-xl bg-[#233648] group'>

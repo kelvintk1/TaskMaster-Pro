@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTasks } from "../context/TaskContext";
 import { GlowCard } from "../components/spotlight-card";
 import { CountUp } from "../components/count-up";
@@ -9,8 +10,28 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
 import RippleLoader from "../components/ripple-loader";
+import { getFilteredTasks } from "../../lib/taskFilters";
+import { getTasksWithDates } from "../../lib/taskUtils";
+
+const getTaskTab = (task: { dueDate?: string | Date; _id?: string }) => {
+  if (!task.dueDate) return "all";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endOfWeek = new Date(today);
+  endOfWeek.setDate(today.getDate() + 7);
+  endOfWeek.setHours(23, 59, 59, 999);
+
+  const taskDate = new Date(task.dueDate);
+  taskDate.setHours(0, 0, 0, 0);
+  const taskTime = taskDate.getTime();
+
+  if (taskTime === today.getTime()) return "today";
+  if (taskDate > today && taskDate <= endOfWeek) return "upcoming";
+  return "all";
+};
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { tasks, loading } = useTasks();
 
   const [focusedIndex, setFocusedIndex] = useState(0);
@@ -28,18 +49,24 @@ export default function DashboardPage() {
     return () => window.removeEventListener('resize', checkSize);
   }, []);
 
+  const filteredTasks = useMemo(() => {
+    return getFilteredTasks(tasks, 'all');
+  }, [tasks]);
+
+  const tasksWithDates = useMemo(() => getTasksWithDates(filteredTasks), [filteredTasks]);
+
   const stats = useMemo(() => {
-    const total = tasks.length;
-    const completed = tasks.filter(t => t.completed).length;
+    const total = filteredTasks.length;
+    const completed = tasksWithDates.filter(t => t.completed).length;
     const active = total - completed;
-    const priority = tasks.filter(t => !t.completed && t.priority).length;
+    const priority = filteredTasks.filter(t => !t.completed && t.priority).length;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const dueToday = tasks.filter(t => {
+    const dueToday = filteredTasks.filter(t => {
       if (t.completed || !t.dueDate) return false;
       const d = new Date(t.dueDate);
       d.setHours(0, 0, 0, 0);
@@ -49,11 +76,22 @@ export default function DashboardPage() {
     const completionRate = total === 0 ? 0 : Math.round((completed / total) * 100);
 
     return { total, completed, active, priority, dueToday, completionRate };
-  }, [tasks]);
+  }, [filteredTasks, tasksWithDates]);
 
   const recentTasks = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(today);
+    endOfWeek.setDate(today.getDate() + 7);
+    endOfWeek.setHours(23, 59, 59, 999);
+
     return [...tasks]
-      .filter(t => !t.completed)
+      .filter(t => !t.completed && t.dueDate)
+      .filter(t => {
+        const taskDate = new Date(t.dueDate);
+        taskDate.setHours(0, 0, 0, 0);
+        return taskDate.getTime() >= today.getTime() && taskDate.getTime() <= endOfWeek.getTime();
+      })
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
       .slice(0, 5);
   }, [tasks]);
@@ -200,7 +238,15 @@ export default function DashboardPage() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.1 }}
-                  className="flex items-center justify-between p-4 rounded-2xl bg-[#152232] border border-[#233648]/50 hover:border-blue-500/40 hover:bg-[#1a293b] transition-all group shadow-sm hover:shadow-lg"
+                  onClick={() => {
+                    const tab = getTaskTab(task);
+                    router.push(`/?tab=${tab}#task-${task._id}`);
+                    setTimeout(() => {
+                      const el = document.getElementById(`task-${task._id}`);
+                      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }, 300);
+                  }}
+                  className="flex items-center justify-between p-4 rounded-2xl bg-[#152232] border border-[#233648]/50 hover:border-blue-500/40 hover:bg-[#1a293b] transition-all group shadow-sm hover:shadow-lg cursor-pointer"
                 >
                   <div className="flex items-center gap-5">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#233648] to-[#152232] border border-[#324d67] flex items-center justify-center text-white font-bold shrink-0 text-xl shadow-inner group-hover:border-blue-500/50 transition-colors">

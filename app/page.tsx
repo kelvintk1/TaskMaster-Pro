@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Tabs from './components/tabs';
 import CreateTask from './components/createTask';
@@ -12,6 +13,7 @@ import CompleteTask from './components/completeTask';
 import { Pattern } from './components/patterns/p-dropdown-menu-12';
 import Checkbox from "./components/checkBox";
 import { useTasks, type Task } from './context/TaskContext';
+import { getFilteredTasks } from '../lib/taskFilters';
 
 // ─── Simple toast ──────────────────────────────────────────────────────────
 function Toast({ message, type, onDone }: { message: string; type: 'success' | 'error'; onDone: () => void }) {
@@ -36,10 +38,27 @@ export default function HomePage() {
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+    const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState("all");
     const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
     const [completingTask, setCompletingTask] = useState<Task | null>(null);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+    useEffect(() => {
+        const requestedTab = searchParams.get('tab');
+        if (requestedTab && ['all', 'today', 'upcoming', 'priority', 'timetable'].includes(requestedTab)) {
+            setActiveTab(requestedTab);
+        }
+
+        const hash = window.location.hash;
+        if (hash) {
+            const targetId = hash.replace('#', '');
+            const targetEl = document.getElementById(targetId);
+            if (targetEl) {
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }, [searchParams]);
 
     const showToast = (message: string, type: 'success' | 'error' = 'success') => {
         setToast({ message, type });
@@ -141,67 +160,11 @@ export default function HomePage() {
         }
     };
 
-    const filterTasksByTab = useCallback((tasks: any[], tab: string) => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayTime = today.getTime();
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-        const endOfWeek = new Date(today);
-        endOfWeek.setDate(today.getDate() + 7);
-        endOfWeek.setHours(23, 59, 59, 999);
-
-        const isOverdue = (task: any) => {
-            if (!task.dueDate) return false;
-            const due = new Date(task.dueDate);
-            if (task.dueTime) {
-                const [hours, minutes] = task.dueTime.split(':');
-                due.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-            } else {
-                due.setHours(23, 59, 59, 999);
-            }
-            return due.getTime() < Date.now();
-        };
-
-        const activeTasks = tasks.filter(task => !isOverdue(task));
-        let filtered: any[] = [];
-
-        switch (tab) {
-            case "today":
-                filtered = activeTasks.filter(task => {
-                    const taskDate = new Date(task.dueDate);
-                    taskDate.setHours(0, 0, 0, 0);
-                    return taskDate.getTime() === todayTime;
-                });
-                filtered.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-                break;
-            case "upcoming":
-                filtered = activeTasks.filter(task => {
-                    const taskDate = new Date(task.dueDate);
-                    taskDate.setHours(0, 0, 0, 0);
-                    return taskDate > today && taskDate <= endOfWeek;
-                });
-                filtered.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-                break;
-            case "priority":
-                filtered = activeTasks.filter(task => task.priority === true);
-                filtered.sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
-                break;
-            case "timetable":
-                filtered = tasks.filter(task => task.source === "timetable");
-                filtered.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-                break;
-            default:
-                filtered = activeTasks;
-                filtered.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-        }
-        return filtered;
-    }, []);
+    // Use shared filter implementation from lib/taskFilters.ts
 
     const filteredTasks = useMemo(() => {
-        const activeOnly = allTasks.filter(t => !t.completed);
-        return filterTasksByTab(activeOnly, activeTab);
-    }, [allTasks, activeTab, filterTasksByTab]);
+        return getFilteredTasks(allTasks, activeTab);
+    }, [allTasks, activeTab]);
 
 
     return (

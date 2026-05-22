@@ -11,6 +11,7 @@ import Image from "next/image";
 import CompleteTask from "../components/completeTask";
 import RippleLoader from "../components/ripple-loader";
 import { useTasks } from "../context/TaskContext";
+import { getTasksWithDates } from "../../lib/taskUtils";
 
 // ─── Simple toast ──────────────────────────────────────────────────────────
 function Toast({ message, type, onDone }: { message: string; type: 'success' | 'error'; onDone: () => void }) {
@@ -67,13 +68,7 @@ export default function CompletedPage() {
   const { completedTasks, stats, monthlyTotalTasks } = useMemo(() => {
     if (!completedTasksData) return { completedTasks: [], stats: { total: 0, weekly: 0, priority: 0, monthly: 0 }, monthlyTotalTasks: 0 };
 
-    const tasksWithDates = completedTasksData.map((task: any) => ({
-      ...task,
-      dateCreated: task.dateCreated ? new Date(task.dateCreated) : new Date(),
-      dueDate: task.dueDate ? new Date(task.dueDate) : new Date(),
-      reminderDate: task.reminderDate ? new Date(task.reminderDate) : null,
-      completedAt: task.completedAt ? new Date(task.completedAt) : new Date()
-    }));
+    const tasksWithDates = getTasksWithDates(completedTasksData);
 
     tasksWithDates.sort((a, b) =>
       new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
