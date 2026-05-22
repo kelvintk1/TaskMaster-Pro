@@ -44,7 +44,7 @@ export function filterTasksByTab(tasks: any[], tab: string) {
       filtered.sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
       break;
     case "timetable":
-      filtered = tasks.filter((task) => task.source === "timetable");
+      filtered = activeTasks.filter((task) => task.source === "timetable");
       filtered.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
       break;
     default:

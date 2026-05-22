@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTasks } from "../context/TaskContext";
+import { useTasks, Task } from "../context/TaskContext";
 import { GlowCard } from "../components/spotlight-card";
 import { CountUp } from "../components/count-up";
 import Image from "next/image";
@@ -12,6 +12,7 @@ import type { Variants } from "framer-motion";
 import RippleLoader from "../components/ripple-loader";
 import { getFilteredTasks } from "../../lib/taskFilters";
 import { getTasksWithDates } from "../../lib/taskUtils";
+import { getTasks } from "../../lib/api";
 
 const getTaskTab = (task: { dueDate?: string | Date; _id?: string }) => {
   if (!task.dueDate) return "all";
@@ -37,6 +38,7 @@ export default function DashboardPage() {
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
+  const [completedTasksData, setCompletedTasksData] = useState<Task[]>([]);
 
   useEffect(() => {
     const checkSize = () => {
@@ -49,17 +51,30 @@ export default function DashboardPage() {
     return () => window.removeEventListener('resize', checkSize);
   }, []);
 
+  useEffect(() => {
+    const fetchCompletedTasks = async () => {
+      try {
+        const data = await getTasks({ completed: true });
+        setCompletedTasksData(data);
+      } catch (error) {
+        console.error("Error fetching completed tasks:", error);
+      }
+    };
+
+    fetchCompletedTasks();
+  }, []);
+
   const filteredTasks = useMemo(() => {
     return getFilteredTasks(tasks, 'all');
   }, [tasks]);
 
-  const tasksWithDates = useMemo(() => getTasksWithDates(filteredTasks), [filteredTasks]);
+  const completedTasksWithDates = useMemo(() => getTasksWithDates(completedTasksData), [completedTasksData]);
 
   const stats = useMemo(() => {
-    const total = filteredTasks.length;
-    const completed = tasksWithDates.filter(t => t.completed).length;
-    const active = total - completed;
-    const priority = filteredTasks.filter(t => !t.completed && t.priority).length;
+    const active = filteredTasks.length;
+    const completed = completedTasksWithDates.length;
+    const total = active + completed;
+    const priority = filteredTasks.filter(t => t.priority).length;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -76,22 +91,18 @@ export default function DashboardPage() {
     const completionRate = total === 0 ? 0 : Math.round((completed / total) * 100);
 
     return { total, completed, active, priority, dueToday, completionRate };
-  }, [filteredTasks, tasksWithDates]);
+  }, [filteredTasks, completedTasksWithDates]);
 
   const recentTasks = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const endOfWeek = new Date(today);
-    endOfWeek.setDate(today.getDate() + 7);
-    endOfWeek.setHours(23, 59, 59, 999);
+    const todayTasks = getFilteredTasks(tasks, 'today');
+    const upcomingTasks = getFilteredTasks(tasks, 'upcoming');
 
-    return [...tasks]
-      .filter(t => !t.completed && t.dueDate)
-      .filter(t => {
-        const taskDate = new Date(t.dueDate);
-        taskDate.setHours(0, 0, 0, 0);
-        return taskDate.getTime() >= today.getTime() && taskDate.getTime() <= endOfWeek.getTime();
-      })
+    const combinedTasks = [...todayTasks, ...upcomingTasks];
+    const uniqueTasks = Array.from(
+      new Map(combinedTasks.map((task) => [task._id || task.id || JSON.stringify(task), task])).values()
+    );
+
+    return uniqueTasks
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
       .slice(0, 5);
   }, [tasks]);
@@ -221,7 +232,7 @@ export default function DashboardPage() {
               <span className="w-2.5 h-6 bg-gradient-to-b from-blue-400 to-blue-600 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"></span>
               Upcoming Deadlines
             </h2>
-            <Link href="/uncompleted" className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 px-4 py-1.5 rounded-full">View All</Link>
+            <Link href="/?tab=upcoming" className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 px-4 py-1.5 rounded-full">View All</Link>
           </div>
 
           <div className="flex flex-col gap-4">
