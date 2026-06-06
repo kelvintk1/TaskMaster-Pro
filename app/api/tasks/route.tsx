@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         
         await connectDB();
         
-        let query: any = { userId: decoded.userId };
+        const query: any = { userId: decoded.userId };
         if (completedParam !== null) {
             query.completed = completedParam === 'true';
         }
