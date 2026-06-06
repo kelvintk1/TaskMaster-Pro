@@ -240,7 +240,7 @@ export default function DashboardPage() {
               <div className="flex flex-col items-center justify-center py-12 text-[#92adc9]">
                 <Image src="/emptyFolder.png" alt="Empty" width={120} height={120} className="opacity-50 mb-4 drop-shadow-lg" />
                 <p className="font-semibold text-lg">No upcoming tasks.</p>
-                <p className="text-sm">You&apos;re all caught up! Take a break.</p>
+                {/* <p className="text-sm">You&apos;re all caught up! Take a break.</p> */}
               </div>
             ) : (
               recentTasks.map((task, idx) => (

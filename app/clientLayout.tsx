@@ -5,6 +5,7 @@ import NavBar from "./components/navBar";
 import ReminderAlarm from "./components/reminderAlarm";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useAuth } from "./context/AuthContext";
 
 export default function ClientLayout({
   children,
@@ -13,27 +14,51 @@ export default function ClientLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-    const hasSeenOnboarding = localStorage.getItem("hasSeenOnboarding");
-    const isAuthenticated = localStorage.getItem("isAuthenticated");
+  }, []);
 
-    if (!hasSeenOnboarding && pathname !== "/onboarding") {
-      router.replace("/onboarding");
+  useEffect(() => {
+    if (!isMounted || authLoading) return;
+
+    const hasSeenOnboarding = localStorage.getItem("hasSeenOnboarding");
+
+    const authPages = ["/login", "/signup"];
+    const protectedPages = ["/dashboard", "/completed", "/uncompleted", "/timetable", "/settings"];
+    const isAuthPage = authPages.includes(pathname);
+    const isProtectedPage = protectedPages.includes(pathname);
+
+    // If authenticated and on auth page, redirect to dashboard
+    if (isAuthenticated && isAuthPage) {
+      router.replace("/dashboard");
       return;
     }
 
-    if (hasSeenOnboarding && !isAuthenticated && pathname !== "/login" && pathname !== "/signup" && pathname !== "/onboarding") {
+    // If not authenticated and on protected page, redirect to login
+    if (!isAuthenticated && isProtectedPage) {
       router.replace("/login");
       return;
     }
-  }, [pathname, router]);
+
+    // Handle onboarding
+    if (!hasSeenOnboarding && pathname !== "/onboarding" && !isAuthPage) {
+      router.replace("/onboarding");
+      return;
+    }
+  }, [pathname, router, isAuthenticated, authLoading, isMounted]);
 
   const isFullScreenPage = ["/onboarding", "/login", "/signup"].includes(pathname);
 
-  if (!isMounted) return null;
+  if (!isMounted || authLoading) {
+    return (
+      <div className="w-full h-screen bg-[#101922] text-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   if (isFullScreenPage) {
     return (

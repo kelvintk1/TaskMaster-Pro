@@ -5,7 +5,8 @@ const taskSchema = new Schema(
     userId: {
       type: Schema.Types.ObjectId,
       ref: "user",
-      required: false, // optional for now
+      required: true,
+      index: true, // Add index for better query performance
     },
     title: {
       type: String,

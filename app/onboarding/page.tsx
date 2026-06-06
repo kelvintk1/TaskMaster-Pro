@@ -73,7 +73,7 @@ export default function OnboardingPage() {
             </div>
             <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
               {slides[currentSlide].title}
-            </h1>
+            </h1> 
             <p className="text-lg md:text-xl text-[#92adc9] max-w-md mx-auto leading-relaxed">
               {slides[currentSlide].description}
             </p>

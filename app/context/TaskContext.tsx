@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { getTasks as apiGetTasks } from "@/lib/api";
+import { useAuth } from "./AuthContext";
 
 export interface Task {
   _id?: string;
@@ -36,6 +37,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const { isAuthenticated, token, user } = useAuth();
 
   const refreshTasks = useCallback(async (filter: { completed?: boolean } = {}) => {
     try {
@@ -51,6 +53,13 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Only fetch tasks if user is authenticated
+    if (!isAuthenticated || !token || !user) {
+      setTasks([]); // Clear tasks when user is not logged in
+      setLoading(false);
+      return;
+    }
+
     refreshTasks({ completed: false });
     
     // Sync tasks across tabs
@@ -62,7 +71,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, [refreshTasks]);
+  }, [isAuthenticated, token, user?.id, refreshTasks]);
 
   return (
     <TaskContext.Provider value={{ tasks, loading, error, refreshTasks }}>
