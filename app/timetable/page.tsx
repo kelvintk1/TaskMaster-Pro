@@ -214,7 +214,7 @@ export default function TimetablePage() {
               <Plus size={14} /> Add Course
             </button>
             <button onClick={() => setStep(2)} className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-all">
-              Next: Upload Timetable <ChevronRight size={16} />
+              Upload Timetable <ChevronRight size={16} />
             </button>
           </div>
         </div>
