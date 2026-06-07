@@ -134,7 +134,7 @@ export default function DashboardPage() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="p-2 md:p-6 w-full max-w-7xl mx-auto flex flex-col gap-8 relative"
+      className="p-2 md:p-6 w-full max-w-7xl mx-auto flex flex-col gap-8 relative overflow-x-hidden"
     >
       {/* Background ambient glow */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[120px] pointer-events-none z-[-1]" />
