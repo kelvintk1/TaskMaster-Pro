@@ -209,13 +209,24 @@ export default function TimetablePage() {
             )}
           </div>
 
-          <div className="flex justify-between">
-            <button onClick={addCourse} disabled={!cName.trim()} className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all">
-              <Plus size={14} /> Add Course
+          <div className="flex flex-col md:flex-row gap-4 w-full">
+  
+            <button 
+              onClick={addCourse} 
+              disabled={!cName.trim()} 
+              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all active:scale-95"
+            >
+              <Plus size={16} /> 
+              Add Course
             </button>
-            <button onClick={() => setStep(2)} className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-all">
-              Upload Timetable <ChevronRight size={16} />
+            <button 
+              onClick={() => setStep(2)} 
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-all active:scale-95"
+            >
+              Upload Timetable 
+              <ChevronRight size={16} />
             </button>
+
           </div>
         </div>
       )}
